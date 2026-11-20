@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "cruprosite",
     "public": "public",
     "ignore": [
       "firebase.json",
