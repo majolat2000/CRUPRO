@@ -1,5 +1,6 @@
-// app.js — Birthday contacts CRUD + "send wishes" UI
+// app.js — Birthday contacts CRUD + "Send Wishes" UI
 import { db, auth } from "./firebase-config.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-auth.js";
 import {
   collection,
   addDoc,
@@ -25,54 +26,89 @@ const cancelEditBtn  = document.getElementById("cancel-edit-btn");
 const contactsList   = document.getElementById("contacts-list");
 const todaysList     = document.getElementById("todays-birthdays");
 
-let unsubscribe = null; // Firestore listener
+let unsubscribe = null;
+const contactsMap = new Map();
 
-// ============ Listen for auth state ============
-window.addEventListener("user-signed-in", (e) => {
-  loadContacts(e.detail.uid);
+// ============ Direct Auth State Observer ============
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    loadContacts(user.uid);
+  } else {
+    if (unsubscribe) {
+      unsubscribe();
+      unsubscribe = null;
+    }
+    contactsMap.clear();
+    contactsList.innerHTML = '<p class="placeholder">No contacts yet. Add one above!</p>';
+    todaysList.innerHTML   = '<p class="placeholder">No birthdays today.</p>';
+    resetForm();
+  }
 });
 
-// ============ CRUD — Add / Update Contact ============
+// ============ CRUD: Add / Update Contact ============
 contactForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const uid = auth.currentUser?.uid;
-  if (!uid) return;
+  if (!uid) {
+    showToast("Please sign in first ❌");
+    return;
+  }
 
-  const data = {
-    name: nameInput.value.trim(),
-    email: emailInput.value.trim(),
-    birthday: birthdayInput.value,          // "YYYY-MM-DD"
-    wishMessage: wishInput.value.trim() || defaultWish(nameInput.value.trim()),
-    updatedAt: serverTimestamp()
-  };
+  const nameVal = nameInput.value.trim();
+  const emailVal = emailInput.value.trim();
+  const birthdayVal = birthdayInput.value; // "YYYY-MM-DD"
+  const wishVal = wishInput.value.trim() || defaultWish(nameVal);
+
+  if (!nameVal || !emailVal || !birthdayVal) {
+    showToast("Please fill in all required fields ❌");
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = "Saving...";
 
   try {
     const editId = editIdInput.value;
     if (editId) {
-      // Update existing
-      await updateDoc(doc(db, "users", uid, "contacts", editId), data);
+      // Update existing contact
+      const contactRef = doc(db, "users", uid, "contacts", editId);
+      await updateDoc(contactRef, {
+        name: nameVal,
+        email: emailVal,
+        birthday: birthdayVal,
+        wishMessage: wishVal,
+        updatedAt: serverTimestamp()
+      });
       showToast("Contact updated ✅");
     } else {
-      // Add new
-      data.createdAt = serverTimestamp();
-      await addDoc(collection(db, "users", uid, "contacts"), data);
+      // Add new contact
+      await addDoc(collection(db, "users", uid, "contacts"), {
+        name: nameVal,
+        email: emailVal,
+        birthday: birthdayVal,
+        wishMessage: wishVal,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
       showToast("Contact added 🎉");
     }
     resetForm();
   } catch (err) {
     console.error("Error saving contact:", err);
-    showToast("Error saving contact ❌");
+    showToast(`Error: ${err.message || "Could not save contact"} ❌`);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = editIdInput.value ? "Update Contact" : "Add Contact";
   }
 });
 
-// Cancel edit mode
+// Cancel edit
 cancelEditBtn.addEventListener("click", () => {
   resetForm();
 });
 
-// ============ Load contacts in real-time ============
+// ============ Real-time Listener ============
 function loadContacts(uid) {
-  // Unsubscribe from any previous listener
   if (unsubscribe) unsubscribe();
 
   const q = query(
@@ -80,17 +116,25 @@ function loadContacts(uid) {
     orderBy("birthday")
   );
 
-  unsubscribe = onSnapshot(q, (snapshot) => {
-    const contacts = [];
-    snapshot.forEach((docSnap) => {
-      contacts.push({ id: docSnap.id, ...docSnap.data() });
-    });
-    renderContacts(contacts);
-    renderTodaysBirthdays(contacts);
-  });
+  unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      contactsMap.clear();
+      snapshot.forEach((docSnap) => {
+        contactsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+      });
+      const contacts = Array.from(contactsMap.values());
+      renderContacts(contacts);
+      renderTodaysBirthdays(contacts);
+    },
+    (error) => {
+      console.error("Firestore listener error:", error);
+      showToast("Error loading contacts from Firestore ❌");
+    }
+  );
 }
 
-// ============ Render all contacts ============
+// ============ Render All Contacts ============
 function renderContacts(contacts) {
   if (contacts.length === 0) {
     contactsList.innerHTML = '<p class="placeholder">No contacts yet. Add one above!</p>';
@@ -107,7 +151,7 @@ function renderContacts(contacts) {
             <span>${escapeHtml(c.email)} · ${bday}</span>
           </div>
           <div class="contact-actions">
-            <button class="btn-secondary" onclick="window.__editContact('${c.id}', ${JSON.stringify(JSON.stringify(c))})">Edit</button>
+            <button class="btn-secondary" onclick="window.__editContact('${c.id}')">Edit</button>
             <button class="btn-danger" onclick="window.__deleteContact('${c.id}')">Delete</button>
           </div>
         </div>`;
@@ -115,7 +159,7 @@ function renderContacts(contacts) {
     .join("");
 }
 
-// ============ Render today's birthdays ============
+// ============ Render Today's Birthdays ============
 function renderTodaysBirthdays(contacts) {
   const today = todayMMDD();
   const matches = contacts.filter((c) => c.birthday && c.birthday.slice(5) === today);
@@ -127,14 +171,13 @@ function renderTodaysBirthdays(contacts) {
 
   todaysList.innerHTML = matches
     .map((c) => {
-      const msg = c.wishMessage || defaultWish(c.name);
       return `
         <div class="birthday-today">
           <div class="info">
             <strong>🎂 ${escapeHtml(c.name)}</strong>
             <span>${escapeHtml(c.email)}</span>
           </div>
-          <button class="btn-send" onclick="window.__sendWish('${escapeHtml(c.email)}', '${escapeHtml(c.name)}', ${JSON.stringify(JSON.stringify(msg))})">
+          <button class="btn-send" onclick="window.__sendWish('${c.id}')">
             Send Wish ✉️
           </button>
         </div>`;
@@ -142,14 +185,17 @@ function renderTodaysBirthdays(contacts) {
     .join("");
 }
 
-// ============ Actions exposed to inline onclick ============
-window.__editContact = (id, jsonStr) => {
-  const c = JSON.parse(jsonStr);
+// ============ Action Handlers ============
+window.__editContact = (id) => {
+  const c = contactsMap.get(id);
+  if (!c) return;
+
   editIdInput.value = id;
-  nameInput.value = c.name;
-  emailInput.value = c.email;
-  birthdayInput.value = c.birthday;
+  nameInput.value = c.name || "";
+  emailInput.value = c.email || "";
+  birthdayInput.value = c.birthday || "";
   wishInput.value = c.wishMessage || "";
+
   formTitle.textContent = "Edit Contact";
   saveBtn.textContent = "Update Contact";
   cancelEditBtn.classList.remove("hidden");
@@ -157,23 +203,35 @@ window.__editContact = (id, jsonStr) => {
 };
 
 window.__deleteContact = async (id) => {
-  if (!confirm("Delete this contact?")) return;
+  const c = contactsMap.get(id);
+  const contactName = c ? c.name : "this contact";
+  if (!confirm(`Delete ${contactName}?`)) return;
+
   const uid = auth.currentUser?.uid;
   if (!uid) return;
+
   try {
     await deleteDoc(doc(db, "users", uid, "contacts", id));
     showToast("Contact deleted 🗑️");
   } catch (err) {
     console.error("Error deleting contact:", err);
+    showToast("Error deleting contact ❌");
   }
 };
 
-window.__sendWish = (email, name, message) => {
-  // Opens the user's default email client with a pre-filled birthday message
+window.__sendWish = (id) => {
+  const c = contactsMap.get(id);
+  if (!c) return;
+
+  const email = c.email;
+  const name = c.name;
+  const message = c.wishMessage || defaultWish(name);
+
   const subject = encodeURIComponent(`Happy Birthday, ${name}! 🎂`);
   const body = encodeURIComponent(message);
+
   window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank");
-  showToast(`Email client opened for ${name} ✉️`);
+  showToast(`Email draft opened for ${name} ✉️`);
 };
 
 // ============ Helpers ============
@@ -194,9 +252,13 @@ function todayMMDD() {
 
 function formatBirthday(dateStr) {
   if (!dateStr) return "—";
-  const [y, m, d] = dateStr.split("-");
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  return `${months[parseInt(m, 10) - 1]} ${parseInt(d, 10)}`;
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${months[parseInt(m, 10) - 1]} ${parseInt(d, 10)}`;
+  }
+  return dateStr;
 }
 
 function defaultWish(name) {
@@ -205,7 +267,7 @@ function defaultWish(name) {
 
 function escapeHtml(text) {
   const div = document.createElement("div");
-  div.textContent = text;
+  div.textContent = text || "";
   return div.innerHTML;
 }
 
@@ -214,5 +276,5 @@ function showToast(message) {
   toast.className = "toast";
   toast.textContent = message;
   document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
+  setTimeout(() => toast.remove(), 3200);
 }

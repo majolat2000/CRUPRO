@@ -1,8 +1,12 @@
 # Dependencies
 node_modules/
 
-# Firebase local cache
+# Firebase local cache & logs
 .firebase/
+firebase-debug.log*
+
+# Sensitive credentials & local config
+public/firebase-config.js
 
 # IDE
 .vscode/
