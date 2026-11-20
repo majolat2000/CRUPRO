@@ -1,0 +1,139 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users/{userId}
+    //   - User profile document. Owner-only read/write.
+    //   - Fields are application-defined; rules enforce ownership only.
+    //
+    // Subcollection: users/{userId}/contacts/{contactId}
+    //   - Birthday contact entries owned by the parent user.
+    //   - Fields:
+    //     - name:        string  (required, 1-200 chars)
+    //     - email:       string  (required, valid email, 5-320 chars)
+    //     - birthday:    string  (required, 1-20 chars, e.g. "MM-DD" or "YYYY-MM-DD")
+    //     - wishMessage: string  (optional, 0-2000 chars)
+    //     - createdAt:   timestamp (required, immutable after creation)
+    //     - updatedAt:   timestamp (required, must be recent on every write)
+    //
+    // ===============================================================
+
+    // =========================
+    // Default Deny – all paths
+    // =========================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Check if the authenticated user owns the path-scoped resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Validate required fields exist in the incoming document
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Validate that the document contains ONLY the allowed fields
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Validate that specified immutable fields have not changed
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // Validate a string field's type and length bounds
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    // Validate email format
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Validate that a timestamp is recent (within the last 5 minutes)
+    function isRecent(time) {
+      return time is timestamp &&
+        time > request.time - duration.value(5, 'm') &&
+        time <= request.time;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    // Validates the full schema of a contact document.
+    // Called on BOTH create and update to prevent the Update Bypass.
+    function isValidContact() {
+      let data = request.resource.data;
+      let allFields = ['name', 'email', 'birthday', 'wishMessage', 'createdAt', 'updatedAt'];
+      let requiredFields = ['name', 'email', 'birthday', 'createdAt', 'updatedAt'];
+
+      return hasRequiredFields(requiredFields) &&
+             hasOnlyAllowedFields(allFields) &&
+             // --- Type & size checks for every field ---
+             validStringLength('name', 1, 200) &&
+             validStringLength('email', 5, 320) &&
+             isValidEmail(data.email) &&
+             validStringLength('birthday', 1, 20) &&
+             // wishMessage is optional; if present, must be a bounded string
+             (!('wishMessage' in data) ||
+               (data.wishMessage is string && data.wishMessage.size() <= 2000)) &&
+             // Timestamps
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             isRecent(data.updatedAt);
+    }
+
+    // ===============================================================
+    // Rules: /users/{userId}
+    // ===============================================================
+    match /users/{userId} {
+      // Owner-only read/write for the user profile document
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+
+      // =============================================================
+      // Rules: /users/{userId}/contacts/{contactId}
+      // =============================================================
+      match /contacts/{contactId} {
+        // Owner-only read
+        allow read: if isOwner(userId);
+
+        // Owner-only create with full validation + recent createdAt
+        allow create: if isOwner(userId) &&
+                         isValidContact() &&
+                         isRecent(request.resource.data.createdAt);
+
+        // Owner-only update with full validation + immutable createdAt
+        allow update: if isOwner(userId) &&
+                         isValidContact() &&
+                         areImmutableFieldsUnchanged(['createdAt']);
+
+        // Owner-only delete
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

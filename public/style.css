@@ -1,0 +1,285 @@
+/* ========== Reset & Base ========== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  color: #333;
+}
+
+/* ========== Layout ========== */
+.container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ========== Header ========== */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+header h1 {
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+#user-email {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.9rem;
+}
+
+/* ========== Card ========== */
+.card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.card h2 {
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+  color: #444;
+}
+
+/* ========== Auth Section ========== */
+#auth-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+#auth-section h1 {
+  color: #fff;
+  margin-bottom: 0.25rem;
+  font-size: 2rem;
+}
+
+.subtitle {
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 1.5rem;
+}
+
+/* ========== Form ========== */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #555;
+  margin-top: 0.25rem;
+}
+
+input,
+textarea {
+  padding: 0.65rem 0.75rem;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+/* ========== Buttons ========== */
+button,
+.btn-secondary {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: background 0.2s, transform 0.1s;
+}
+
+button[type="submit"],
+#save-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+}
+
+button[type="submit"]:hover,
+#save-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: #eee;
+  color: #555;
+}
+
+.btn-secondary:hover {
+  background: #ddd;
+}
+
+.btn-danger {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #c0392b;
+}
+
+.btn-send {
+  background: #27ae60;
+  color: #fff;
+}
+
+.btn-send:hover {
+  background: #219a52;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* ========== Auth Toggle ========== */
+#auth-toggle {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+#toggle-link {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.error {
+  color: #e74c3c;
+  text-align: center;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+}
+
+/* ========== Contact List ========== */
+.contact-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.contact-item:last-child {
+  border-bottom: none;
+}
+
+.contact-info {
+  flex: 1;
+}
+
+.contact-info strong {
+  display: block;
+  font-size: 1rem;
+}
+
+.contact-info span {
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.contact-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.contact-actions button {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+/* ========== Birthday Highlight ========== */
+.birthday-today {
+  background: #fef9e7;
+  border: 1px solid #f9e79f;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.birthday-today .info strong {
+  display: block;
+}
+
+.birthday-today .info span {
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.placeholder {
+  color: #aaa;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+/* ========== Toast ========== */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: #333;
+  color: #fff;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  z-index: 999;
+  animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
