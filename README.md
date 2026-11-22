@@ -1,27 +1,39 @@
 # 🎂 Birthday Wishes App
 
-A lightweight, secure web application for easily managing birthday contacts and sending personalized birthday wishes to their emails with one click.
+A lightweight, secure web application for easily managing birthday contacts and sending personalized birthday wishes to their emails and WhatsApp with one click.
 
-Built with **vanilla HTML/CSS/JavaScript** and powered by **Firebase** (Authentication & Cloud Firestore).
+Built with **vanilla HTML/CSS/JavaScript** and powered by **Firebase** (Firebase Authentication & Firebase Realtime Database).
 
 ---
 
 ## ✨ Features
 
-- **Email & Password Authentication**: Secure user sign-up and sign-in powered by Firebase Authentication.
-- **Contact Management**: Add, view, edit, and delete birthday contacts (Name, Email, Birthday, Custom Wish Message).
-- **🎉 Today's Birthdays Spotlight**: Automatically scans and highlights contacts who celebrate their birthday today.
-- **One-Click Email Wish (`mailto:`)**: Generates pre-filled email drafts with customizable heartfelt birthday greetings.
-- **Real-Time Database**: Powered by Cloud Firestore with real-time sync (`onSnapshot`).
-- **Production-Grade Security Rules**: Granular, owner-only authorization (`users/{userId}/contacts`) with strict schema validation.
+- **Sign In Only (No Public Sign-Ups)**: Access is strictly restricted to authorized team members (`folafeye@gmail.com` and `majolat2000@gmail.com`).
+- **Pre-Seeded Accounts with Initial Password**: Both authorized accounts are pre-seeded with the initial password `PASSWORD`.
+- **In-App Account Settings & Password Change**: Signed-in users can update their password securely at any time with re-authentication verification.
+- **Contact Management**: Add, view, edit, and delete contacts with:
+  - **Full Name**
+  - **Birthday** (Date picker)
+  - **Email Address**
+  - **WhatsApp Number**
+  - **Status**:
+    - **Staff**: Permanent contact; remains in the database until manually deleted.
+    - **Student**: Dynamic expected finish date selection for **November** of future years (up to 6 years away from the current year).
+- **Automated Expired Student Deletion**: When a student contact reaches or passes their expected finish month (November of that year), the contact is automatically pruned from the database!
+- **🎉 Today's Birthdays Spotlight**: Automatically detects and highlights contacts celebrating their birthday today.
+- **One-Click Wishes**:
+  - **✉️ Email Wish (`mailto:`)**: Generates pre-filled email drafts with customizable heartfelt birthday greetings.
+  - **💬 WhatsApp Wish (`wa.me`)**: Opens WhatsApp directly with a pre-formatted birthday message to the contact's number.
+- **Realtime Database**: Powered by **Firebase Realtime Database** with live bidirectional synchronization.
 
 ---
 
 ## 🛠️ Tech Stack & Firebase Services
 
 - **Frontend**: Vanilla HTML5, modern CSS3, ES Modules.
-- **Firebase Auth**: Email/Password authentication.
-- **Cloud Firestore**: Real-time NoSQL document database.
+- **Firebase Auth**: Email/Password authentication (restricted login).
+- **Firebase Realtime Database**: Real-time NoSQL JSON database (`https://cruprosite-default-rtdb.firebaseio.com`).
+- **Cloud Firestore**: Also connected with security rules.
 - **Project ID**: `cruprosite`
 - **GitHub Repository**: [https://github.com/majolat2000/CRUPRO.git](https://github.com/majolat2000/CRUPRO.git)
 
@@ -45,13 +57,11 @@ npx serve public -l 3000
 
 ---
 
-## 🔒 Firestore Security Rules
+## 🔐 Credentials & Security
 
-The security rules in [`firestore.rules`](./firestore.rules) ensure:
-1. **Default Deny**: All unauthenticated and unlisted paths are denied.
-2. **Owner Isolation**: Users can only read and write their own contacts (`/users/{userId}/contacts/{contactId}`).
-3. **Data Validation**: Fields (`name`, `email`, `birthday`) are strictly validated for type, length, and email format.
-4. **Timestamp Integrity**: `createdAt` is immutable after creation, and `updatedAt` is enforced on writes.
+- **Secrets protection**: `public/firebase-config.js` is ignored by Git and removed from GitHub commit history.
+- **Template provided**: Copy `public/firebase-config.example.js` to `public/firebase-config.js` when setting up on a new environment.
+- **Realtime Database Rules**: Configured in `database.rules.json` to allow read/write only to authenticated team users.
 
 ---
 
@@ -60,15 +70,17 @@ The security rules in [`firestore.rules`](./firestore.rules) ensure:
 ```
 CRUPRO/
 ├── public/
-│   ├── index.html          # Main application page
-│   ├── style.css           # Modern styles & responsive layout
-│   ├── firebase-config.js  # Firebase Modular SDK initialization
-│   ├── auth.js             # Email/Password authentication logic
-│   └── app.js              # Contacts CRUD & Birthday notification logic
-├── firestore.rules         # Cloud Firestore security rules
-├── firestore.indexes.json  # Cloud Firestore indexes
-├── firebase.json           # Firebase configuration
-├── .firebaserc             # Firebase active project association
-├── .gitignore              # Git ignore rules
-└── README.md               # Project documentation
+│   ├── index.html                  # Main application page
+│   ├── style.css                   # Modern styles & responsive layout
+│   ├── firebase-config.js          # Local Firebase Modular SDK initialization (gitignored)
+│   ├── firebase-config.example.js  # Public template configuration
+│   ├── auth.js                     # Sign-in only, auto-seeding & change password
+│   └── app.js                      # Contacts CRUD, dynamic finish dates, auto-prune & wishes
+├── database.rules.json             # Firebase Realtime Database security rules
+├── firestore.rules                 # Cloud Firestore security rules
+├── firestore.indexes.json          # Cloud Firestore indexes
+├── firebase.json                   # Firebase configuration (Hosting, RTDB, Firestore, Auth)
+├── .firebaserc                     # Firebase active project association
+├── .gitignore                      # Git ignore rules
+└── README.md                       # Project documentation
 ```
