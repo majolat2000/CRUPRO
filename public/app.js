@@ -1,4 +1,4 @@
-// app.js — Contacts CRUD (Realtime Database), Dynamic Student Finish Dates, Auto-Pruning & Wishes
+// app.js — Contacts CRUD, Search, Today's & Missed Birthdays, Auto-Pruning & Wishes
 import { rtdb, auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-auth.js";
 import {
@@ -10,7 +10,7 @@ import {
   onValue
 } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-database.js";
 
-// DOM references
+// DOM references — Forms & Controls
 const contactForm        = document.getElementById("contact-form");
 const formTitle          = document.getElementById("form-title");
 const editIdInput        = document.getElementById("edit-id");
@@ -24,22 +24,30 @@ const finishDateSelect   = document.getElementById("expected-finish-date");
 const wishInput          = document.getElementById("wish-message");
 const saveBtn            = document.getElementById("save-btn");
 const cancelEditBtn      = document.getElementById("cancel-edit-btn");
+
+// DOM references — Search & Lists
+const searchInput        = document.getElementById("contact-search");
+const clearSearchBtn     = document.getElementById("clear-search-btn");
 const contactsList       = document.getElementById("contacts-list");
 const contactsCount      = document.getElementById("contacts-count");
 const todaysList         = document.getElementById("todays-birthdays");
+const todaysCount        = document.getElementById("todays-count");
+const missedList         = document.getElementById("missed-birthdays");
+const missedCount        = document.getElementById("missed-count");
 
 let unsubscribeRtdb = null;
 const contactsMap = new Map();
+let currentSearchQuery = "";
 
 // ============ Populate Dynamic November Finish Dates ============
-// Generates November dates up to 6 years ahead from current year
+// Generates November dates up to 6 years ahead from the current year
 function populateExpectedFinishOptions() {
   finishDateSelect.innerHTML = "";
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1; // 1-12
 
-  // If current date is prior to November of this year, allow current year November
+  // If current date is prior to November of this year, include current year
   if (currentMonth < 11) {
     const opt = document.createElement("option");
     opt.value = `November ${currentYear}`;
@@ -70,6 +78,31 @@ statusSelect.addEventListener("change", () => {
   }
 });
 
+// ============ Search Contacts Handler ============
+if (searchInput) {
+  searchInput.addEventListener("input", (e) => {
+    currentSearchQuery = e.target.value.trim().toLowerCase();
+    if (clearSearchBtn) {
+      if (currentSearchQuery.length > 0) {
+        clearSearchBtn.classList.remove("hidden");
+      } else {
+        clearSearchBtn.classList.add("hidden");
+      }
+    }
+    filterAndRenderContacts();
+  });
+}
+
+if (clearSearchBtn) {
+  clearSearchBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    currentSearchQuery = "";
+    clearSearchBtn.classList.add("hidden");
+    filterAndRenderContacts();
+    searchInput.focus();
+  });
+}
+
 // ============ Realtime Database Contacts Listener ============
 onAuthStateChanged(auth, (user) => {
   if (user) {
@@ -83,7 +116,10 @@ onAuthStateChanged(auth, (user) => {
     contactsMap.clear();
     contactsList.innerHTML = '<p class="placeholder">No contacts yet. Add one above!</p>';
     todaysList.innerHTML   = '<p class="placeholder">No birthdays today.</p>';
+    missedList.innerHTML   = '<p class="placeholder">No missed birthdays! All past birthdays have been greeted. 🌟</p>';
     if (contactsCount) contactsCount.textContent = "0 contacts";
+    if (todaysCount)   todaysCount.textContent   = "0 today";
+    if (missedCount)   missedCount.textContent   = "0 missed";
     resetForm();
   }
 });
@@ -123,15 +159,16 @@ function listenToContacts() {
         }
       }
 
-      // Sort active contacts by birthday (MM-DD)
+      // Sort all active contacts by upcoming birthday (MM-DD)
       activeContacts.sort((a, b) => {
         const bdayA = (a.birthday || "").slice(5);
         const bdayB = (b.birthday || "").slice(5);
         return bdayA.localeCompare(bdayB);
       });
 
-      renderContacts(activeContacts);
+      filterAndRenderContacts();
       renderTodaysBirthdays(activeContacts);
+      renderMissedBirthdays(activeContacts);
     },
     (error) => {
       console.error("Realtime Database listener error:", error);
@@ -159,6 +196,211 @@ function isStudentExpired(c) {
   if (currentYear > finishYear) return true;
   if (currentYear === finishYear && currentMonth >= 11) return true;
   return false;
+}
+
+// ============ Filter & Render All Contacts (Search) ============
+function filterAndRenderContacts() {
+  const all = Array.from(contactsMap.values());
+
+  let filtered = all;
+  if (currentSearchQuery) {
+    filtered = all.filter((c) => {
+      const name = (c.name || "").toLowerCase();
+      const email = (c.email || "").toLowerCase();
+      const whatsapp = (c.whatsapp || "").toLowerCase();
+      const status = (c.status || "").toLowerCase();
+      const finishDate = (c.expectedFinishDate || "").toLowerCase();
+      const bdayStr = formatBirthday(c.birthday).toLowerCase();
+
+      return (
+        name.includes(currentSearchQuery) ||
+        email.includes(currentSearchQuery) ||
+        whatsapp.includes(currentSearchQuery) ||
+        status.includes(currentSearchQuery) ||
+        finishDate.includes(currentSearchQuery) ||
+        bdayStr.includes(currentSearchQuery)
+      );
+    });
+  }
+
+  renderContacts(filtered, all.length);
+}
+
+function renderContacts(contacts, totalCount) {
+  if (contactsCount) {
+    if (currentSearchQuery) {
+      contactsCount.textContent = `${contacts.length} of ${totalCount} matching`;
+    } else {
+      contactsCount.textContent = `${totalCount} contact${totalCount === 1 ? "" : "s"}`;
+    }
+  }
+
+  if (contacts.length === 0) {
+    if (currentSearchQuery) {
+      contactsList.innerHTML = `<p class="placeholder">No contacts match "<strong>${escapeHtml(currentSearchQuery)}</strong>".</p>`;
+    } else {
+      contactsList.innerHTML = '<p class="placeholder">No contacts yet. Add your first contact above!</p>';
+    }
+    return;
+  }
+
+  contactsList.innerHTML = contacts
+    .map((c) => {
+      const bday = formatBirthday(c.birthday);
+      const isStudent = c.status === "student";
+      const badgeClass = isStudent ? "badge badge-student" : "badge badge-staff";
+      const statusText = isStudent
+        ? `🎓 Student (Finishes ${escapeHtml(c.expectedFinishDate || "Nov")})`
+        : `💼 Staff (Permanent)`;
+
+      const currentYear = new Date().getFullYear();
+      const wasWishedThisYear = c.lastWishedYear === currentYear;
+
+      return `
+        <div class="contact-item">
+          <div class="contact-info">
+            <div class="contact-header-line">
+              <strong>${escapeHtml(c.name)}</strong>
+              <span class="${badgeClass}">${statusText}</span>
+              ${
+                wasWishedThisYear
+                  ? `<span class="badge" title="Birthday greeting was sent this year">✓ Wished ${currentYear}</span>`
+                  : ""
+              }
+            </div>
+            <div class="contact-meta">
+              <span>🎂 ${bday}</span>
+              <span>✉️ ${escapeHtml(c.email)}</span>
+              <span>💬 ${escapeHtml(c.whatsapp || "—")}</span>
+            </div>
+          </div>
+          <div class="contact-actions">
+            <button class="btn-secondary" onclick="window.__editContact('${c.id}')" title="Edit Contact">Edit</button>
+            <button class="btn-danger" onclick="window.__deleteContact('${c.id}')" title="Delete Contact">Delete</button>
+          </div>
+        </div>`;
+    })
+    .join("");
+}
+
+// ============ Render Today's Birthdays ============
+function renderTodaysBirthdays(contacts) {
+  const today = todayMMDD();
+  const matches = contacts.filter((c) => c.birthday && c.birthday.slice(5) === today);
+
+  if (todaysCount) {
+    todaysCount.textContent = `${matches.length} today`;
+  }
+
+  if (matches.length === 0) {
+    todaysList.innerHTML = '<p class="placeholder">No birthdays today.</p>';
+    return;
+  }
+
+  todaysList.innerHTML = matches
+    .map((c) => {
+      return `
+        <div class="birthday-today-card">
+          <div class="info">
+            <strong>🎂 ${escapeHtml(c.name)}</strong>
+            <span>${escapeHtml(c.email)} · ${escapeHtml(c.whatsapp || "No WhatsApp")}</span>
+          </div>
+          <div class="birthday-today-actions">
+            <button class="btn-send" onclick="window.__sendEmailWish('${c.id}', false)">
+              Email Wish ✉️
+            </button>
+            ${
+              c.whatsapp
+                ? `<button class="btn-whatsapp" onclick="window.__sendWhatsAppWish('${c.id}', false)">
+                    WhatsApp Wish 💬
+                  </button>`
+                : ""
+            }
+          </div>
+        </div>`;
+    })
+    .join("");
+}
+
+// ============ Render Missed Birthdays ============
+// Detects birthdays that already passed this year where user did NOT click WhatsApp or Email wish
+function renderMissedBirthdays(contacts) {
+  const currentYear = new Date().getFullYear();
+  const missed = [];
+
+  contacts.forEach((c) => {
+    const diffDays = getDaysAgoThisYear(c.birthday);
+    // If birthday occurred in the past this calendar year AND was not wished this year:
+    if (diffDays !== null && diffDays > 0) {
+      if (c.lastWishedYear !== currentYear) {
+        missed.push({
+          ...c,
+          daysAgo: diffDays
+        });
+      }
+    }
+  });
+
+  // Sort missed birthdays by days ago (most recent first)
+  missed.sort((a, b) => a.daysAgo - b.daysAgo);
+
+  if (missedCount) {
+    missedCount.textContent = `${missed.length} missed`;
+  }
+
+  if (missed.length === 0) {
+    missedList.innerHTML = '<p class="placeholder">No missed birthdays! All past birthdays have been greeted. 🌟</p>';
+    return;
+  }
+
+  missedList.innerHTML = missed
+    .map((c) => {
+      const bday = formatBirthday(c.birthday);
+      const daysText = c.daysAgo === 1 ? "1 day ago" : `${c.daysAgo} days ago`;
+
+      return `
+        <div class="birthday-missed-card">
+          <div class="info">
+            <strong>⚠️ ${escapeHtml(c.name)} <span class="days-ago-pill">${daysText}</span></strong>
+            <span>🎂 Birthday was on ${bday} · ${escapeHtml(c.email)}</span>
+          </div>
+          <div class="birthday-today-actions">
+            <button class="btn-send" onclick="window.__sendEmailWish('${c.id}', true)" title="Send Belated Email Wish">
+              Belated Email ✉️
+            </button>
+            ${
+              c.whatsapp
+                ? `<button class="btn-whatsapp" onclick="window.__sendWhatsAppWish('${c.id}', true)" title="Send Belated WhatsApp Wish">
+                    Belated WhatsApp 💬
+                  </button>`
+                : ""
+            }
+            <button class="btn-mark-done" onclick="window.__markWished('${c.id}')" title="Mark as greeted outside app">
+              Mark as Sent ✓
+            </button>
+          </div>
+        </div>`;
+    })
+    .join("");
+}
+
+// Helper: Calculate days ago this calendar year
+function getDaysAgoThisYear(birthdayStr) {
+  if (!birthdayStr) return null;
+  const parts = birthdayStr.split("-");
+  if (parts.length < 3) return null;
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+
+  const bdayThisYear = new Date(currentYear, month, day);
+  const today = new Date(currentYear, now.getMonth(), now.getDate());
+
+  const diffMs = today.getTime() - bdayThisYear.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  return diffDays;
 }
 
 // ============ CRUD: Add / Update Contact ============
@@ -211,11 +453,9 @@ contactForm.addEventListener("submit", async (e) => {
   try {
     const editId = editIdInput.value;
     if (editId) {
-      // Update existing contact in Realtime Database
       await update(ref(rtdb, `contacts/${editId}`), payload);
       showToast("Contact updated in database ✅");
     } else {
-      // Add new contact to Realtime Database
       payload.createdAt = Date.now();
       payload.createdBy = user.email;
       const newRef = push(ref(rtdb, "contacts"));
@@ -236,83 +476,6 @@ contactForm.addEventListener("submit", async (e) => {
 cancelEditBtn.addEventListener("click", () => {
   resetForm();
 });
-
-// ============ Render All Contacts ============
-function renderContacts(contacts) {
-  if (contactsCount) {
-    contactsCount.textContent = `${contacts.length} contact${contacts.length === 1 ? "" : "s"}`;
-  }
-
-  if (contacts.length === 0) {
-    contactsList.innerHTML = '<p class="placeholder">No contacts yet. Add your first contact above!</p>';
-    return;
-  }
-
-  contactsList.innerHTML = contacts
-    .map((c) => {
-      const bday = formatBirthday(c.birthday);
-      const isStudent = c.status === "student";
-      const badgeClass = isStudent ? "badge badge-student" : "badge badge-staff";
-      const statusText = isStudent
-        ? `🎓 Student (Finishes ${escapeHtml(c.expectedFinishDate || "Nov")})`
-        : `💼 Staff (Permanent)`;
-
-      return `
-        <div class="contact-item">
-          <div class="contact-info">
-            <div class="contact-header-line">
-              <strong>${escapeHtml(c.name)}</strong>
-              <span class="${badgeClass}">${statusText}</span>
-            </div>
-            <div class="contact-meta">
-              <span>🎂 ${bday}</span>
-              <span>✉️ ${escapeHtml(c.email)}</span>
-              <span>💬 ${escapeHtml(c.whatsapp || "—")}</span>
-            </div>
-          </div>
-          <div class="contact-actions">
-            <button class="btn-secondary" onclick="window.__editContact('${c.id}')" title="Edit Contact">Edit</button>
-            <button class="btn-danger" onclick="window.__deleteContact('${c.id}')" title="Delete Contact">Delete</button>
-          </div>
-        </div>`;
-    })
-    .join("");
-}
-
-// ============ Render Today's Birthdays ============
-function renderTodaysBirthdays(contacts) {
-  const today = todayMMDD();
-  const matches = contacts.filter((c) => c.birthday && c.birthday.slice(5) === today);
-
-  if (matches.length === 0) {
-    todaysList.innerHTML = '<p class="placeholder">No birthdays today.</p>';
-    return;
-  }
-
-  todaysList.innerHTML = matches
-    .map((c) => {
-      return `
-        <div class="birthday-today-card">
-          <div class="info">
-            <strong>🎂 ${escapeHtml(c.name)}</strong>
-            <span>${escapeHtml(c.email)} · ${escapeHtml(c.whatsapp || "No WhatsApp")}</span>
-          </div>
-          <div class="birthday-today-actions">
-            <button class="btn-send" onclick="window.__sendEmailWish('${c.id}')">
-              Email Wish ✉️
-            </button>
-            ${
-              c.whatsapp
-                ? `<button class="btn-whatsapp" onclick="window.__sendWhatsAppWish('${c.id}')">
-                    WhatsApp Wish 💬
-                  </button>`
-                : ""
-            }
-          </div>
-        </div>`;
-    })
-    .join("");
-}
 
 // ============ Global Actions ============
 window.__editContact = (id) => {
@@ -358,28 +521,83 @@ window.__deleteContact = async (id) => {
   }
 };
 
-window.__sendEmailWish = (id) => {
+window.__sendEmailWish = async (id, isBelated = false) => {
   const c = contactsMap.get(id);
   if (!c) return;
 
-  const subject = encodeURIComponent(`Happy Birthday, ${c.name}! 🎂`);
-  const message = c.wishMessage || defaultWish(c.name);
-  const body = encodeURIComponent(message);
+  const currentYear = new Date().getFullYear();
+  const subjectPrefix = isBelated ? "Happy Belated Birthday" : "Happy Birthday";
+  const subject = encodeURIComponent(`${subjectPrefix}, ${c.name}! 🎂`);
 
+  let message = c.wishMessage;
+  if (isBelated) {
+    message = `Happy Belated Birthday, ${c.name}! 🎂🎉\n\nI hope you had a wonderful birthday celebration! Wishing you an incredible year ahead filled with joy, peace, and abundance.\n\nWarm regards ❤️`;
+  } else if (!message) {
+    message = defaultWish(c.name);
+  }
+
+  const body = encodeURIComponent(message);
   window.open(`mailto:${c.email}?subject=${subject}&body=${body}`, "_blank");
-  showToast(`Email client opened for ${c.name} ✉️`);
+
+  // Track that the wish was clicked/sent for this year
+  try {
+    await update(ref(rtdb, `contacts/${id}`), {
+      lastWishedYear: currentYear,
+      lastWishedAt: Date.now(),
+      lastWishedType: "email"
+    });
+    showToast(`Email draft opened & marked as wished for ${currentYear} ✉️`);
+  } catch (err) {
+    console.warn("Could not record wish timestamp:", err);
+  }
 };
 
-window.__sendWhatsAppWish = (id) => {
+window.__sendWhatsAppWish = async (id, isBelated = false) => {
   const c = contactsMap.get(id);
   if (!c || !c.whatsapp) return;
 
+  const currentYear = new Date().getFullYear();
   const cleanPhone = c.whatsapp.replace(/[^0-9]/g, "");
-  const message = c.wishMessage || defaultWish(c.name);
-  const encodedText = encodeURIComponent(message);
 
+  let message = c.wishMessage;
+  if (isBelated) {
+    message = `Happy Belated Birthday, ${c.name}! 🎂🎉\n\nI hope you had a wonderful birthday celebration! Wishing you an amazing year ahead filled with joy and blessings.\n\nWarm regards ❤️`;
+  } else if (!message) {
+    message = defaultWish(c.name);
+  }
+
+  const encodedText = encodeURIComponent(message);
   window.open(`https://wa.me/${cleanPhone}?text=${encodedText}`, "_blank");
-  showToast(`WhatsApp opened for ${c.name} 💬`);
+
+  // Track that the wish was clicked/sent for this year
+  try {
+    await update(ref(rtdb, `contacts/${id}`), {
+      lastWishedYear: currentYear,
+      lastWishedAt: Date.now(),
+      lastWishedType: "whatsapp"
+    });
+    showToast(`WhatsApp opened & marked as wished for ${currentYear} 💬`);
+  } catch (err) {
+    console.warn("Could not record wish timestamp:", err);
+  }
+};
+
+window.__markWished = async (id) => {
+  const c = contactsMap.get(id);
+  if (!c) return;
+
+  const currentYear = new Date().getFullYear();
+  try {
+    await update(ref(rtdb, `contacts/${id}`), {
+      lastWishedYear: currentYear,
+      lastWishedAt: Date.now(),
+      lastWishedType: "manual"
+    });
+    showToast(`Marked ${c.name}'s birthday as greeted for ${currentYear} ✓`);
+  } catch (err) {
+    console.error("Mark wish error:", err);
+    showToast("Error updating status ❌");
+  }
 };
 
 // ============ Helper Functions ============

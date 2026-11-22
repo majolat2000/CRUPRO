@@ -76,6 +76,11 @@ header h1 {
   background: #fffdf5;
 }
 
+.missed-card {
+  border-left: 5px solid #e53e3e;
+  background: #fffaf0;
+}
+
 .card-header-row {
   display: flex;
   justify-content: space-between;
@@ -346,6 +351,62 @@ button:disabled {
   border: 1px solid #bee3f8;
 }
 
+.badge-today {
+  background: #fefcbf;
+  color: #744210;
+  border: 1px solid #ecc94b;
+}
+
+.badge-missed {
+  background: #fed7d7;
+  color: #9b2c2c;
+  border: 1px solid #feb2b2;
+}
+
+/* ========== Search Bar ========== */
+.search-bar-container {
+  position: relative;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+}
+
+.search-bar-container input {
+  width: 100%;
+  padding-left: 2.4rem;
+  padding-right: 2.2rem;
+  border-radius: 20px;
+  background: #f7fafc;
+}
+
+.search-bar-container input:focus {
+  background: #fff;
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.85rem;
+  font-size: 0.95rem;
+  pointer-events: none;
+  color: #a0aec0;
+}
+
+.btn-clear {
+  position: absolute;
+  right: 0.6rem;
+  background: transparent;
+  border: none;
+  color: #a0aec0;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 0 0.4rem;
+  line-height: 1;
+}
+
+.btn-clear:hover {
+  color: #4a5568;
+}
+
 .contact-item {
   display: flex;
   justify-content: space-between;
@@ -432,6 +493,55 @@ button:disabled {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+/* ========== Missed Birthdays ========== */
+.birthday-missed-card {
+  background: #ffffff;
+  border: 1px solid #feb2b2;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.birthday-missed-card .info strong {
+  font-size: 1.05rem;
+  color: #9b2c2c;
+  display: block;
+}
+
+.birthday-missed-card .info span {
+  font-size: 0.85rem;
+  color: #c53030;
+}
+
+.days-ago-pill {
+  display: inline-block;
+  background: #fff5f5;
+  color: #e53e3e;
+  border: 1px solid #fed7d7;
+  padding: 0.15rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  margin-left: 0.4rem;
+}
+
+.btn-mark-done {
+  background: #edf2f7;
+  color: #4a5568;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.82rem;
+}
+
+.btn-mark-done:hover {
+  background: #e2e8f0;
+  color: #2b6cb0;
 }
 
 .placeholder {

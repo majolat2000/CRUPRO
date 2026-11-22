@@ -128,9 +128,24 @@
 
     <!-- ============ TODAY'S BIRTHDAYS CARD ============ -->
     <div class="card highlight-card">
-      <h2>🎉 Today's Birthdays</h2>
+      <div class="card-header-row">
+        <h2>🎉 Today's Birthdays</h2>
+        <span id="todays-count" class="badge badge-today">0 today</span>
+      </div>
       <div id="todays-birthdays">
         <p class="placeholder">No birthdays today.</p>
+      </div>
+    </div>
+
+    <!-- ============ MISSED BIRTHDAYS CARD ============ -->
+    <div class="card missed-card">
+      <div class="card-header-row">
+        <h2>⚠️ Missed Birthdays</h2>
+        <span id="missed-count" class="badge badge-missed">0 missed</span>
+      </div>
+      <p class="card-description">Birthdays that passed this year without an email or WhatsApp greeting sent:</p>
+      <div id="missed-birthdays">
+        <p class="placeholder">No missed birthdays! All past birthdays have been greeted. 🌟</p>
       </div>
     </div>
 
@@ -140,6 +155,14 @@
         <h2>Your Birthday Contacts</h2>
         <span id="contacts-count" class="badge">0 contacts</span>
       </div>
+
+      <!-- Search & Filter Bar -->
+      <div class="search-bar-container">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="contact-search" placeholder="Search contacts by name, email, phone, status..." autocomplete="off" />
+        <button type="button" id="clear-search-btn" class="btn-clear hidden" title="Clear search">&times;</button>
+      </div>
+
       <div id="contacts-list">
         <p class="placeholder">No contacts yet. Add one above!</p>
       </div>

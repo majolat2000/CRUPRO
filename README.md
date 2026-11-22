@@ -20,6 +20,8 @@ Built with **vanilla HTML/CSS/JavaScript** and powered by **Firebase** (Firebase
     - **Staff**: Permanent contact; remains in the database until manually deleted.
     - **Student**: Dynamic expected finish date selection for **November** of future years (up to 6 years away from the current year).
 - **Automated Expired Student Deletion**: When a student contact reaches or passes their expected finish month (November of that year), the contact is automatically pruned from the database!
+- **Instant Contact Search**: Real-time search filter to instantly find any contact by name, email, WhatsApp number, status, or birth date.
+- **⚠️ Missed Birthdays Tracker**: Automatically flags any birthdays that occurred earlier this year without an email or WhatsApp wish sent, showing how many days ago it was and providing one-click **Belated Email** and **Belated WhatsApp** greetings.
 - **🎉 Today's Birthdays Spotlight**: Automatically detects and highlights contacts celebrating their birthday today.
 - **One-Click Wishes**:
   - **✉️ Email Wish (`mailto:`)**: Generates pre-filled email drafts with customizable heartfelt birthday greetings.
