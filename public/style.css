@@ -576,6 +576,150 @@ button:disabled {
   to   { opacity: 0; }
 }
 
+/* ========== Tabs Toggle ========== */
+.tab-toggle-group {
+  display: inline-flex;
+  background: #edf2f7;
+  padding: 0.25rem;
+  border-radius: 10px;
+  gap: 0.25rem;
+}
+
+.btn-tab {
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #718096;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-tab:hover {
+  color: #2d3748;
+}
+
+.btn-tab.active {
+  background: #ffffff;
+  color: #4a5568;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ========== CSV Upload Box ========== */
+.csv-upload-box {
+  border: 2px dashed #cbd5e0;
+  border-radius: 12px;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  background: #f7fafc;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.csv-upload-box:hover,
+.csv-upload-box.dragover {
+  border-color: #667eea;
+  background: #edf2f7;
+}
+
+.csv-icon {
+  font-size: 2.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.csv-upload-box h3 {
+  font-size: 1.15rem;
+  color: #2d3748;
+  margin-bottom: 0.25rem;
+}
+
+.csv-filename-text {
+  display: block;
+  margin-top: 0.75rem;
+  font-weight: 600;
+  color: #2b6cb0;
+  font-size: 0.9rem;
+}
+
+.csv-template-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 0 0.25rem;
+}
+
+.btn-link {
+  background: transparent;
+  border: none;
+  color: #3182ce;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0.2rem 0.4rem;
+}
+
+.btn-link:hover {
+  color: #2b6cb0;
+}
+
+/* ========== CSV Preview Table ========== */
+#csv-preview-container {
+  margin-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 1.25rem;
+}
+
+.preview-header {
+  margin-bottom: 0.75rem;
+}
+
+.preview-header h4 {
+  font-size: 1rem;
+  color: #2d3748;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  max-height: 320px;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+  text-align: left;
+}
+
+.preview-table th {
+  background: #edf2f7;
+  color: #4a5568;
+  font-weight: 600;
+  padding: 0.65rem 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.preview-table td {
+  padding: 0.6rem 0.75rem;
+  border-top: 1px solid #edf2f7;
+  color: #2d3748;
+}
+
+.preview-table tr:hover {
+  background: #f7fafc;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
   .form-row {

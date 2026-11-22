@@ -1,4 +1,4 @@
-// app.js — Contacts CRUD, Search, Today's & Missed Birthdays, Auto-Pruning & Wishes
+// app.js — Contacts CRUD, CSV Import (Google Forms), Search, Today's & Missed Birthdays, Auto-Pruning & Wishes
 import { rtdb, auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-auth.js";
 import {
@@ -10,7 +10,13 @@ import {
   onValue
 } from "https://www.gstatic.com/firebasejs/11.7.1/firebase-database.js";
 
-// DOM references — Forms & Controls
+// DOM references — Tabs & Panels
+const tabSingleBtn        = document.getElementById("tab-single-btn");
+const tabCsvBtn           = document.getElementById("tab-csv-btn");
+const singleContactPanel  = document.getElementById("single-contact-panel");
+const csvImportPanel      = document.getElementById("csv-import-panel");
+
+// DOM references — Single Contact Form
 const contactForm        = document.getElementById("contact-form");
 const formTitle          = document.getElementById("form-title");
 const editIdInput        = document.getElementById("edit-id");
@@ -25,6 +31,17 @@ const wishInput          = document.getElementById("wish-message");
 const saveBtn            = document.getElementById("save-btn");
 const cancelEditBtn      = document.getElementById("cancel-edit-btn");
 
+// DOM references — CSV Import
+const csvDropZone        = document.getElementById("csv-drop-zone");
+const csvFileInput       = document.getElementById("csv-file-input");
+const browseCsvBtn       = document.getElementById("browse-csv-btn");
+const csvFilenameText    = document.getElementById("csv-filename");
+const downloadTemplateBtn = document.getElementById("download-template-btn");
+const csvPreviewContainer = document.getElementById("csv-preview-container");
+const csvPreviewCount    = document.getElementById("csv-preview-count");
+const csvPreviewTbody    = document.getElementById("csv-preview-tbody");
+const importContactsBtn  = document.getElementById("import-contacts-btn");
+
 // DOM references — Search & Lists
 const searchInput        = document.getElementById("contact-search");
 const clearSearchBtn     = document.getElementById("clear-search-btn");
@@ -38,16 +55,32 @@ const missedCount        = document.getElementById("missed-count");
 let unsubscribeRtdb = null;
 const contactsMap = new Map();
 let currentSearchQuery = "";
+let parsedCsvContacts = [];
+
+// ============ Tab Switching (Manual Entry vs CSV Import) ============
+if (tabSingleBtn && tabCsvBtn) {
+  tabSingleBtn.addEventListener("click", () => {
+    tabSingleBtn.classList.add("active");
+    tabCsvBtn.classList.remove("active");
+    singleContactPanel.classList.remove("hidden");
+    csvImportPanel.classList.add("hidden");
+  });
+
+  tabCsvBtn.addEventListener("click", () => {
+    tabCsvBtn.classList.add("active");
+    tabSingleBtn.classList.remove("active");
+    csvImportPanel.classList.remove("hidden");
+    singleContactPanel.classList.add("hidden");
+  });
+}
 
 // ============ Populate Dynamic November Finish Dates ============
-// Generates November dates up to 6 years ahead from the current year
 function populateExpectedFinishOptions() {
   finishDateSelect.innerHTML = "";
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1; // 1-12
 
-  // If current date is prior to November of this year, include current year
   if (currentMonth < 11) {
     const opt = document.createElement("option");
     opt.value = `November ${currentYear}`;
@@ -56,7 +89,6 @@ function populateExpectedFinishOptions() {
     finishDateSelect.appendChild(opt);
   }
 
-  // Future dates up to 6 years away
   for (let i = 1; i <= 6; i++) {
     const targetYear = currentYear + i;
     const opt = document.createElement("option");
@@ -138,7 +170,6 @@ function listenToContacts() {
       snapshot.forEach((childSnap) => {
         const contact = { id: childSnap.key, ...childSnap.val() };
 
-        // Check if student has reached or passed expected finish month (November)
         if (isStudentExpired(contact)) {
           expiredContacts.push(contact);
         } else {
@@ -323,14 +354,12 @@ function renderTodaysBirthdays(contacts) {
 }
 
 // ============ Render Missed Birthdays ============
-// Detects birthdays that already passed this year where user did NOT click WhatsApp or Email wish
 function renderMissedBirthdays(contacts) {
   const currentYear = new Date().getFullYear();
   const missed = [];
 
   contacts.forEach((c) => {
     const diffDays = getDaysAgoThisYear(c.birthday);
-    // If birthday occurred in the past this calendar year AND was not wished this year:
     if (diffDays !== null && diffDays > 0) {
       if (c.lastWishedYear !== currentYear) {
         missed.push({
@@ -341,7 +370,6 @@ function renderMissedBirthdays(contacts) {
     }
   });
 
-  // Sort missed birthdays by days ago (most recent first)
   missed.sort((a, b) => a.daysAgo - b.daysAgo);
 
   if (missedCount) {
@@ -384,7 +412,6 @@ function renderMissedBirthdays(contacts) {
     .join("");
 }
 
-// Helper: Calculate days ago this calendar year
 function getDaysAgoThisYear(birthdayStr) {
   if (!birthdayStr) return null;
   const parts = birthdayStr.split("-");
@@ -403,7 +430,7 @@ function getDaysAgoThisYear(birthdayStr) {
   return diffDays;
 }
 
-// ============ CRUD: Add / Update Contact ============
+// ============ CRUD: Add / Update Single Contact ============
 contactForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const user = auth.currentUser;
@@ -477,10 +504,349 @@ cancelEditBtn.addEventListener("click", () => {
   resetForm();
 });
 
+// ============ CSV Upload & Parsing (Google Forms) ============
+if (browseCsvBtn && csvFileInput) {
+  browseCsvBtn.addEventListener("click", () => {
+    csvFileInput.click();
+  });
+}
+
+if (csvDropZone) {
+  csvDropZone.addEventListener("click", (e) => {
+    if (e.target !== browseCsvBtn) {
+      csvFileInput.click();
+    }
+  });
+
+  csvDropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    csvDropZone.classList.add("dragover");
+  });
+
+  csvDropZone.addEventListener("dragleave", () => {
+    csvDropZone.classList.remove("dragover");
+  });
+
+  csvDropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    csvDropZone.classList.remove("dragover");
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleCsvFile(e.dataTransfer.files[0]);
+    }
+  });
+}
+
+if (csvFileInput) {
+  csvFileInput.addEventListener("change", (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleCsvFile(e.target.files[0]);
+    }
+  });
+}
+
+function handleCsvFile(file) {
+  if (!file.name.toLowerCase().endsWith(".csv")) {
+    showToast("Please upload a valid .csv file ❌");
+    return;
+  }
+
+  if (csvFilenameText) {
+    csvFilenameText.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const text = event.target.result;
+    processCsvData(text);
+  };
+  reader.onerror = () => {
+    showToast("Error reading CSV file ❌");
+  };
+  reader.readAsText(file);
+}
+
+// RFC 4180 compliant CSV line tokenizer
+function parseCsvRows(text) {
+  const rows = [];
+  let currentRow = [];
+  let currentVal = "";
+  let insideQuote = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (insideQuote && nextChar === '"') {
+        currentVal += '"';
+        i++; // Skip escaped quote
+      } else {
+        insideQuote = !insideQuote;
+      }
+    } else if (char === "," && !insideQuote) {
+      currentRow.push(currentVal.trim());
+      currentVal = "";
+    } else if ((char === "\r" || char === "\n") && !insideQuote) {
+      if (char === "\r" && nextChar === "\n") {
+        i++; // Skip \n
+      }
+      currentRow.push(currentVal.trim());
+      if (currentRow.some((val) => val.length > 0)) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+      currentVal = "";
+    } else {
+      currentVal += char;
+    }
+  }
+
+  if (currentVal.length > 0 || currentRow.length > 0) {
+    currentRow.push(currentVal.trim());
+    if (currentRow.some((val) => val.length > 0)) {
+      rows.push(currentRow);
+    }
+  }
+
+  return rows;
+}
+
+// Intelligently map Google Forms CSV columns
+function processCsvData(csvText) {
+  const rows = parseCsvRows(csvText);
+  if (rows.length < 2) {
+    showToast("CSV file appears to be empty or missing data rows ❌");
+    return;
+  }
+
+  const headers = rows[0].map((h) => h.toLowerCase());
+
+  // Find column indices by common Google Forms headers
+  const nameIdx     = headers.findIndex((h) => /name|full\s*name|student\s*name|staff\s*name|respondent/i.test(h));
+  const emailIdx    = headers.findIndex((h) => /email|e-mail|mail/i.test(h));
+  const whatsappIdx = headers.findIndex((h) => /whatsapp|phone|mobile|tel|contact\s*no|number/i.test(h));
+  const birthdayIdx = headers.findIndex((h) => /birth|bday|dob|date\s*of\s*birth/i.test(h));
+  const statusIdx   = headers.findIndex((h) => /status|role|category|type|designation|cadre/i.test(h));
+  const finishIdx   = headers.findIndex((h) => /finish|graduat|year\s*left|expected|completion/i.test(h));
+
+  if (nameIdx === -1 || birthdayIdx === -1) {
+    showToast("Could not find required 'Name' and 'Birthday' columns in CSV header ❌");
+    return;
+  }
+
+  const currentYear = new Date().getFullYear();
+  parsedCsvContacts = [];
+
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    const rawName = nameIdx !== -1 ? (row[nameIdx] || "").trim() : "";
+    const rawBday = birthdayIdx !== -1 ? (row[birthdayIdx] || "").trim() : "";
+    if (!rawName || !rawBday) continue;
+
+    const rawEmail    = emailIdx !== -1 ? (row[emailIdx] || "").trim() : "";
+    const rawWhatsapp = whatsappIdx !== -1 ? (row[whatsappIdx] || "").trim() : "";
+    const rawStatus   = statusIdx !== -1 ? (row[statusIdx] || "").trim().toLowerCase() : "";
+    const rawFinish   = finishIdx !== -1 ? (row[finishIdx] || "").trim() : "";
+
+    const normalizedBirthday = normalizeDate(rawBday);
+    if (!normalizedBirthday) continue;
+
+    const isStudent = /student|undergrad|pupil/i.test(rawStatus) || (rawFinish && !/staff|faculty|employee/i.test(rawStatus));
+    const status = isStudent ? "student" : "staff";
+
+    let expectedFinishDate = null;
+    let finishYear = null;
+    let finishMonth = null;
+
+    if (isStudent) {
+      finishYear = extractYear(rawFinish) || (currentYear + 4);
+      expectedFinishDate = `November ${finishYear}`;
+      finishMonth = 11;
+    }
+
+    parsedCsvContacts.push({
+      name: rawName,
+      birthday: normalizedBirthday,
+      email: rawEmail || `${rawName.toLowerCase().replace(/[^a-z0-9]/g, "")}@crawford.edu.ng`,
+      whatsapp: rawWhatsapp || "",
+      status: status,
+      expectedFinishDate: expectedFinishDate,
+      finishYear: finishYear,
+      finishMonth: finishMonth,
+      wishMessage: defaultWish(rawName),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+  }
+
+  if (parsedCsvContacts.length === 0) {
+    showToast("No valid contacts could be extracted from this CSV ❌");
+    return;
+  }
+
+  // Render Preview
+  renderCsvPreview(parsedCsvContacts);
+}
+
+// Convert various date formats (e.g., Google Forms DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, April 15) to YYYY-MM-DD
+function normalizeDate(raw) {
+  if (!raw) return null;
+  const str = raw.trim();
+
+  // 1. ISO YYYY-MM-DD or YYYY/MM/DD
+  const isoMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (isoMatch) {
+    const y = isoMatch[1];
+    const m = String(isoMatch[2]).padStart(2, "0");
+    const d = String(isoMatch[3]).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  // 2. DD/MM/YYYY or MM/DD/YYYY
+  const slashMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+  if (slashMatch) {
+    const p1 = parseInt(slashMatch[1], 10);
+    const p2 = parseInt(slashMatch[2], 10);
+    let y = parseInt(slashMatch[3], 10);
+    if (y < 100) y += 2000;
+
+    let m, d;
+    // If p1 > 12, p1 must be day, p2 is month (DD/MM/YYYY)
+    if (p1 > 12) {
+      d = String(p1).padStart(2, "0");
+      m = String(p2).padStart(2, "0");
+    } else {
+      // Otherwise default to MM/DD/YYYY (standard Google Forms export)
+      m = String(p1).padStart(2, "0");
+      d = String(p2).padStart(2, "0");
+    }
+    return `${y}-${m}-${d}`;
+  }
+
+  // 3. Textual date: "April 15", "15 April", "15th April 2004"
+  const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+  const lower = str.toLowerCase();
+  for (let mIdx = 0; mIdx < months.length; mIdx++) {
+    if (lower.includes(months[mIdx])) {
+      const dayMatch = str.match(/\b([1-9]|[12][0-9]|3[01])(st|nd|rd|th)?\b/);
+      const yearMatch = str.match(/\b(19\d\d|20\d\d)\b/);
+      if (dayMatch) {
+        const d = String(parseInt(dayMatch[1], 10)).padStart(2, "0");
+        const m = String(mIdx + 1).padStart(2, "0");
+        const y = yearMatch ? yearMatch[1] : "2000";
+        return `${y}-${m}-${d}`;
+      }
+    }
+  }
+
+  return null;
+}
+
+function renderCsvPreview(contacts) {
+  if (!csvPreviewContainer || !csvPreviewTbody) return;
+
+  csvPreviewCount.textContent = contacts.length;
+  csvPreviewTbody.innerHTML = contacts
+    .map((c, i) => {
+      const isStudent = c.status === "student";
+      const statusPill = isStudent
+        ? `<span class="badge badge-student">Student</span>`
+        : `<span class="badge badge-staff">Staff</span>`;
+      const finishText = isStudent ? (c.expectedFinishDate || "—") : "Permanent";
+
+      return `
+        <tr>
+          <td>${i + 1}</td>
+          <td><strong>${escapeHtml(c.name)}</strong></td>
+          <td>${formatBirthday(c.birthday)}</td>
+          <td>${escapeHtml(c.email)}</td>
+          <td>${escapeHtml(c.whatsapp || "—")}</td>
+          <td>${statusPill}</td>
+          <td>${escapeHtml(finishText)}</td>
+        </tr>`;
+    })
+    .join("");
+
+  csvPreviewContainer.classList.remove("hidden");
+  csvPreviewContainer.scrollIntoView({ behavior: "smooth" });
+}
+
+// Batch import contacts to Realtime Database
+if (importContactsBtn) {
+  importContactsBtn.addEventListener("click", async () => {
+    if (parsedCsvContacts.length === 0) {
+      showToast("No contacts selected for import ❌");
+      return;
+    }
+
+    const user = auth.currentUser;
+    if (!user) {
+      showToast("Please sign in first ❌");
+      return;
+    }
+
+    importContactsBtn.disabled = true;
+    importContactsBtn.textContent = `Importing ${parsedCsvContacts.length} contacts...`;
+
+    try {
+      const contactsRef = ref(rtdb, "contacts");
+      const promises = parsedCsvContacts.map((contact) => {
+        contact.createdBy = user.email;
+        const newRef = push(contactsRef);
+        return set(newRef, contact);
+      });
+
+      await Promise.all(promises);
+
+      showToast(`Successfully imported ${parsedCsvContacts.length} contacts! 🎉`);
+
+      // Reset CSV state and switch back to manual entry
+      parsedCsvContacts = [];
+      csvFileInput.value = "";
+      if (csvFilenameText) csvFilenameText.textContent = "";
+      csvPreviewContainer.classList.add("hidden");
+      if (tabSingleBtn) tabSingleBtn.click();
+
+    } catch (err) {
+      console.error("Batch import error:", err);
+      showToast(`Import error: ${err.message || "Failed to save contacts"} ❌`);
+    } finally {
+      importContactsBtn.disabled = false;
+      importContactsBtn.textContent = "Import All Contacts to Database 🚀";
+    }
+  });
+}
+
+// Download Sample CSV Template
+if (downloadTemplateBtn) {
+  downloadTemplateBtn.addEventListener("click", () => {
+    const csvContent =
+      "Full Name,Birthday,Email,WhatsApp Number,Status,Expected Finish Date\n" +
+      "Dr. Emmanuel Ade,1985-04-12,emmanuel.ade@crawforduniversity.edu.ng,+2348031234567,Staff,\n" +
+      "Sarah Johnson,2004-11-20,sarah.johnson@student.crawford.edu.ng,+2348123456789,Student,November 2028\n" +
+      "Michael Okon,2003-08-05,michael.okon@student.crawford.edu.ng,+2349012345678,Student,November 2027\n" +
+      "Grace Oladipo,1992-01-15,grace.oladipo@crawforduniversity.edu.ng,+2348055554321,Staff,\n";
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", "crawford_university_birthday_contacts_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast("Template downloaded 📥");
+  });
+}
+
 // ============ Global Actions ============
 window.__editContact = (id) => {
   const c = contactsMap.get(id);
   if (!c) return;
+
+  // Ensure Manual Entry tab is selected
+  if (tabSingleBtn) tabSingleBtn.click();
 
   editIdInput.value   = id;
   nameInput.value     = c.name || "";
@@ -529,17 +895,10 @@ window.__sendEmailWish = async (id, isBelated = false) => {
   const subjectPrefix = isBelated ? "Happy Belated Birthday" : "Happy Birthday";
   const subject = encodeURIComponent(`${subjectPrefix}, ${c.name}! 🎂`);
 
-  let message = c.wishMessage;
-  if (isBelated) {
-    message = `Happy Belated Birthday, ${c.name}! 🎂🎉\n\nI hope you had a wonderful birthday celebration! Wishing you an incredible year ahead filled with joy, peace, and abundance.\n\nWarm regards ❤️`;
-  } else if (!message) {
-    message = defaultWish(c.name);
-  }
-
+  let message = isBelated ? defaultBelatedWish(c.name) : (c.wishMessage || defaultWish(c.name));
   const body = encodeURIComponent(message);
   window.open(`mailto:${c.email}?subject=${subject}&body=${body}`, "_blank");
 
-  // Track that the wish was clicked/sent for this year
   try {
     await update(ref(rtdb, `contacts/${id}`), {
       lastWishedYear: currentYear,
@@ -559,17 +918,10 @@ window.__sendWhatsAppWish = async (id, isBelated = false) => {
   const currentYear = new Date().getFullYear();
   const cleanPhone = c.whatsapp.replace(/[^0-9]/g, "");
 
-  let message = c.wishMessage;
-  if (isBelated) {
-    message = `Happy Belated Birthday, ${c.name}! 🎂🎉\n\nI hope you had a wonderful birthday celebration! Wishing you an amazing year ahead filled with joy and blessings.\n\nWarm regards ❤️`;
-  } else if (!message) {
-    message = defaultWish(c.name);
-  }
-
+  let message = isBelated ? defaultBelatedWish(c.name) : (c.wishMessage || defaultWish(c.name));
   const encodedText = encodeURIComponent(message);
   window.open(`https://wa.me/${cleanPhone}?text=${encodedText}`, "_blank");
 
-  // Track that the wish was clicked/sent for this year
   try {
     await update(ref(rtdb, `contacts/${id}`), {
       lastWishedYear: currentYear,
@@ -635,8 +987,14 @@ function extractYear(str) {
   return match ? parseInt(match[0], 10) : new Date().getFullYear();
 }
 
+// Customized Default Birthday Wish from Crawford University's PRO Office
 function defaultWish(name) {
-  return `Happy Birthday, ${name}! 🎂🎉\n\nWishing you a wonderful day filled with joy and happiness. May this new year of your life bring abundant blessings and success!\n\nWarm regards ❤️`;
+  return `Happy Birthday, ${name}! 🎂🎉\n\nWishing you a glorious birthday filled with joy, peace, and divine blessings. May this new year of your life bring you greater heights of achievement, sound health, and boundless happiness!\n\nWith love & warmest regards,\nPublic Relations Office (PRO)\nCrawford University ❤️`;
+}
+
+// Customized Belated Birthday Wish from Crawford University's PRO Office
+function defaultBelatedWish(name) {
+  return `Happy Belated Birthday, ${name}! 🎂🎉\n\nWe hope you had a truly wonderful birthday celebration! Wishing you an incredible year ahead filled with divine favour, joy, and grand success.\n\nWith love & warmest regards,\nPublic Relations Office (PRO)\nCrawford University ❤️`;
 }
 
 function escapeHtml(text) {

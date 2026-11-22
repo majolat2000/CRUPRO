@@ -71,59 +71,115 @@
 
     <!-- ============ ADD / EDIT CONTACT FORM ============ -->
     <div class="card">
-      <h2 id="form-title">Add a Birthday Contact</h2>
-      <form id="contact-form">
-        <input type="hidden" id="edit-id" value="" />
+      <div class="card-header-row">
+        <h2 id="form-title">Add a Birthday Contact</h2>
+        <div class="tab-toggle-group">
+          <button type="button" id="tab-single-btn" class="btn-tab active">Manual Entry</button>
+          <button type="button" id="tab-csv-btn" class="btn-tab">📄 Import CSV</button>
+        </div>
+      </div>
 
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label for="contact-name">Full Name *</label>
-            <input type="text" id="contact-name" placeholder="e.g. Jane Doe" required />
+      <!-- Single Contact Form Panel -->
+      <div id="single-contact-panel">
+        <form id="contact-form">
+          <input type="hidden" id="edit-id" value="" />
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="contact-name">Full Name *</label>
+              <input type="text" id="contact-name" placeholder="e.g. Jane Doe" required />
+            </div>
+            <div class="form-group flex-1">
+              <label for="contact-birthday">Birthday *</label>
+              <input type="date" id="contact-birthday" required />
+            </div>
           </div>
-          <div class="form-group flex-1">
-            <label for="contact-birthday">Birthday *</label>
-            <input type="date" id="contact-birthday" required />
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="contact-email">Email Address *</label>
+              <input type="email" id="contact-email" placeholder="jane@example.com" required />
+            </div>
+            <div class="form-group flex-1">
+              <label for="contact-whatsapp">WhatsApp Number *</label>
+              <input type="tel" id="contact-whatsapp" placeholder="e.g. +2348012345678" required />
+            </div>
           </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="contact-status">Status *</label>
+              <select id="contact-status" required>
+                <option value="staff">Staff (Permanent contact)</option>
+                <option value="student">Student (Temporary contact)</option>
+              </select>
+            </div>
+
+            <!-- Expected Finish Date (shown only when Student is selected) -->
+            <div class="form-group flex-1 hidden" id="student-finish-group">
+              <label for="expected-finish-date">Expected Finish Date (November only) *</label>
+              <select id="expected-finish-date">
+                <!-- Dynamically populated in app.js -->
+              </select>
+              <small class="helper-text">Student contact will automatically be deleted when this date is reached.</small>
+            </div>
+          </div>
+
+          <label for="wish-message">Custom Birthday Wish Message</label>
+          <textarea id="wish-message" rows="3" placeholder="Leave blank to use default greeting from Crawford University's PRO Office..."></textarea>
+
+          <div class="form-actions">
+            <button type="submit" id="save-btn">Add Contact</button>
+            <button type="button" id="cancel-edit-btn" class="btn-secondary hidden">Cancel Edit</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- CSV File Upload Panel -->
+      <div id="csv-import-panel" class="hidden">
+        <div class="csv-upload-box" id="csv-drop-zone">
+          <div class="csv-icon">📊</div>
+          <h3>Upload Contacts from CSV</h3>
+          <p class="card-description">
+            Upload any CSV file (e.g. downloaded from Google Forms or Google Sheets).
+          </p>
+          <input type="file" id="csv-file-input" accept=".csv,text/csv" class="hidden" />
+          <button type="button" id="browse-csv-btn" class="btn-secondary">Choose CSV File</button>
+          <span id="csv-filename" class="csv-filename-text"></span>
         </div>
 
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label for="contact-email">Email Address *</label>
-            <input type="email" id="contact-email" placeholder="jane@example.com" required />
-          </div>
-          <div class="form-group flex-1">
-            <label for="contact-whatsapp">WhatsApp Number *</label>
-            <input type="tel" id="contact-whatsapp" placeholder="e.g. +2348012345678" required />
-          </div>
+        <div class="csv-template-row">
+          <small class="helper-text">
+            Headers auto-detected: <code>Full Name</code>, <code>Birthday</code>, <code>Email</code>, <code>WhatsApp Number</code>, <code>Status</code>, <code>Finish Date</code>.
+          </small>
+          <button type="button" id="download-template-btn" class="btn-link">📥 Download Sample CSV Template</button>
         </div>
 
-        <div class="form-row">
-          <div class="form-group flex-1">
-            <label for="contact-status">Status *</label>
-            <select id="contact-status" required>
-              <option value="staff">Staff (Permanent contact)</option>
-              <option value="student">Student (Temporary contact)</option>
-            </select>
+        <!-- CSV Preview & Import Button -->
+        <div id="csv-preview-container" class="hidden">
+          <div class="card-header-row preview-header">
+            <h4>Preview: <span id="csv-preview-count">0</span> contacts ready to import</h4>
+            <button type="button" id="import-contacts-btn" class="btn-send">Import All Contacts to Database 🚀</button>
           </div>
-
-          <!-- Expected Finish Date (shown only when Student is selected) -->
-          <div class="form-group flex-1 hidden" id="student-finish-group">
-            <label for="expected-finish-date">Expected Finish Date (November only) *</label>
-            <select id="expected-finish-date">
-              <!-- Dynamically populated in app.js -->
-            </select>
-            <small class="helper-text">Student contact will automatically be deleted when this date is reached.</small>
+          <div class="table-responsive">
+            <table class="preview-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Birthday</th>
+                  <th>Email</th>
+                  <th>WhatsApp</th>
+                  <th>Status</th>
+                  <th>Expected Finish</th>
+                </tr>
+              </thead>
+              <tbody id="csv-preview-tbody">
+              </tbody>
+            </table>
           </div>
         </div>
-
-        <label for="wish-message">Custom Birthday Wish Message</label>
-        <textarea id="wish-message" rows="3" placeholder="Leave blank to use default heartfelt greeting..."></textarea>
-
-        <div class="form-actions">
-          <button type="submit" id="save-btn">Add Contact</button>
-          <button type="button" id="cancel-edit-btn" class="btn-secondary hidden">Cancel Edit</button>
-        </div>
-      </form>
+      </div>
     </div>
 
     <!-- ============ TODAY'S BIRTHDAYS CARD ============ -->
