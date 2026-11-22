@@ -55,7 +55,7 @@ authForm.addEventListener("submit", async (e) => {
 
   // Enforce allowed users
   if (!ALLOWED_EMAILS.includes(email)) {
-    authError.textContent = "Access restricted: Only folafeye@gmail.com and majolat2000@gmail.com can sign in.";
+    authError.textContent = "Access restricted: Only authorized team members can sign in.";
     return;
   }
 
@@ -251,7 +251,9 @@ function friendlyError(code) {
     "auth/wrong-password": "Incorrect password. (Initial password is PASSWORD).",
     "auth/invalid-credential": "Invalid credentials. If this is your first time, use password 'PASSWORD'.",
     "auth/too-many-requests": "Too many failed attempts. Please wait a moment and try again.",
-    "auth/network-request-failed": "Network error. Please check your internet connection."
+    "auth/network-request-failed": "Network error. Please check your internet connection.",
+    "auth/configuration-not-found": "Email/Password sign-in provider is not enabled in your Firebase Console. Please enable it under Authentication > Sign-in method.",
+    "auth/operation-not-allowed": "Email/Password sign-in provider is not enabled in your Firebase Console. Please enable it under Authentication > Sign-in method."
   };
   return map[code] || `Authentication error (${code}).`;
 }
