@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Birthday Wishes Sender</title>
+  <title>Crawford University's PRO Office</title>
   <link rel="canonical" href="https://crawfordpro.com.ng/" />
   <script>
     (function () {
@@ -18,267 +18,49 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=2.2" />
+  <link rel="stylesheet" href="/style.css?v=2.3" />
 </head>
 <body>
-
-  <!-- ============ AUTH SECTION (SIGN IN ONLY) ============ -->
-  <div id="auth-section" class="container">
-    <h1>🎂 Birthday Wishes Sender</h1>
-    <p class="subtitle">Sign in to manage your contacts and send birthday greetings</p>
-
-    <div id="login-form" class="card auth-card">
-      <h2>Sign In</h2>
-      <p class="auth-notice">
-        Access is restricted to authorized team members.
-      </p>
-
-      <form id="auth-form">
-        <label for="email">Email</label>
-        <input type="email" id="email" placeholder="you@example.com" required autocomplete="email" />
-
-        <label for="password">Password</label>
-        <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password" />
-
-        <button type="submit" id="auth-btn">Sign In</button>
-      </form>
-      <p id="auth-error" class="error"></p>
-    </div>
-  </div>
-
-  <!-- ============ APP DASHBOARD ============ -->
-  <div id="app-section" class="container hidden">
-    <header>
-      <h1>🎂 Birthday Wishes Sender</h1>
-      <div class="header-right">
-        <span id="user-email"></span>
-        <button id="toggle-settings-btn" class="btn-secondary" title="Account Settings">⚙️ Settings</button>
-        <button id="sign-out-btn" class="btn-secondary">Sign Out</button>
-      </div>
-    </header>
-
-    <!-- ============ ACCOUNT SETTINGS CARD (TOGGLEABLE) ============ -->
-    <div id="settings-card" class="card hidden">
-      <div class="card-header-row">
-        <h2>🔒 Account Settings — Change Password</h2>
-        <button type="button" id="close-settings-btn" class="btn-close" aria-label="Close settings">&times;</button>
-      </div>
-      <p class="card-description">Update your login password below.</p>
-      
-      <form id="change-password-form">
-        <label for="current-password">Current Password</label>
-        <input type="password" id="current-password" placeholder="Enter current password" required autocomplete="current-password" />
-
-        <label for="new-password">New Password</label>
-        <input type="password" id="new-password" placeholder="At least 6 characters" minlength="6" required autocomplete="new-password" />
-
-        <label for="confirm-password">Confirm New Password</label>
-        <input type="password" id="confirm-password" placeholder="Re-enter new password" minlength="6" required autocomplete="new-password" />
-
-        <div class="form-actions">
-          <button type="submit" id="update-password-btn">Update Password</button>
-          <button type="button" id="cancel-password-btn" class="btn-secondary">Cancel</button>
-        </div>
-      </form>
-      <p id="password-feedback" class="feedback-msg"></p>
+  <div class="container portal-container">
+    <div class="portal-hero">
+      <div class="portal-badge">Official Portal</div>
+      <h1 class="portal-title">Crawford University's PRO Office</h1>
+      <p class="portal-subtitle">Welcome to the digital services portal of Crawford University's Public Relations Office. Select a service below to get started.</p>
     </div>
 
-    <!-- ============ ADD / EDIT CONTACT FORM ============ -->
-    <div class="card">
-      <div class="card-header-row">
-        <h2 id="form-title">Add a Birthday Contact</h2>
-        <div class="tab-toggle-group">
-          <button type="button" id="tab-single-btn" class="btn-tab active">Manual Entry</button>
-          <button type="button" id="tab-csv-btn" class="btn-tab">📄 Upload CSV</button>
-        </div>
-      </div>
-
-      <!-- Single Contact Form Panel -->
-      <div id="single-contact-panel">
-        <form id="contact-form">
-          <input type="hidden" id="edit-id" value="" />
-
-          <div class="form-row">
-            <div class="form-group flex-1">
-              <label for="contact-name">Full Name *</label>
-              <input type="text" id="contact-name" placeholder="e.g. Jane Doe" required />
-            </div>
-            <div class="form-group flex-1">
-              <label for="contact-birthday">Birthday *</label>
-              <input type="date" id="contact-birthday" required />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group flex-1">
-              <label for="contact-email">Email Address *</label>
-              <input type="email" id="contact-email" placeholder="jane@example.com" required />
-            </div>
-            <div class="form-group flex-1">
-              <label for="contact-whatsapp">WhatsApp Number *</label>
-              <input type="tel" id="contact-whatsapp" placeholder="e.g. +2348012345678" required />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group flex-1">
-              <label for="contact-status">Status *</label>
-              <select id="contact-status" required>
-                <option value="staff">Staff (Permanent contact)</option>
-                <option value="student">Student (Temporary contact)</option>
-              </select>
-            </div>
-
-            <!-- Expected Finish Date (shown only when Student is selected) -->
-            <div class="form-group flex-1 hidden" id="student-finish-group">
-              <label for="expected-finish-date">Expected Finish Date (November only) *</label>
-              <select id="expected-finish-date">
-                <!-- Dynamically populated in app.js -->
-              </select>
-              <small class="helper-text">Student contact will automatically be deleted when this date is reached.</small>
-            </div>
-          </div>
-
-          <label for="wish-message">Custom Birthday Wish Message</label>
-          <textarea id="wish-message" rows="3" placeholder="Leave blank to use default greeting with love from Crawford University's PRO Office..."></textarea>
-
-          <div class="form-actions">
-            <button type="submit" id="save-btn">Add Contact</button>
-            <button type="button" id="switch-to-csv-btn" class="btn-secondary">📁 Or Upload CSV File</button>
-            <button type="button" id="cancel-edit-btn" class="btn-secondary hidden">Cancel Edit</button>
-          </div>
-        </form>
-      </div>
-
-      <!-- CSV File Upload Panel -->
-      <div id="csv-import-panel" class="hidden">
-        <label for="csv-file-input" class="csv-upload-box" id="csv-drop-zone">
-          <div class="csv-icon">📊</div>
-          <h3>Upload Contacts from CSV</h3>
-          <p class="card-description">
-            Upload any CSV file (e.g. downloaded from Google Forms or Google Sheets). Click anywhere here to choose your file.
+    <div class="portal-grid">
+      <!-- Service 1: Birthday Wishes Sender -->
+      <div class="portal-card">
+        <div>
+          <div class="portal-card-icon">🎂</div>
+          <h2>Birthday Wishes Sender</h2>
+          <p>
+            Manage contacts, track today's, upcoming, and missed birthdays, and send personalized greeting messages via WhatsApp and Email.
           </p>
-          <span class="btn-primary" id="browse-csv-btn" style="display:inline-block; margin-top: 0.5rem; pointer-events: none;">📂 Choose CSV File</span>
-          <input type="file" id="csv-file-input" accept=".csv,text/csv,text/plain" class="visually-hidden-input" />
-          <span id="csv-filename" class="csv-filename-text"></span>
-        </label>
-        <div id="csv-status-msg" class="csv-status-msg"></div>
-
-        <div class="csv-template-row">
-          <small class="helper-text">
-            Headers auto-detected: <code>Full Name</code>, <code>Birthday</code>, <code>Email</code>, <code>WhatsApp Number</code>, <code>Status</code>, <code>Finish Date</code>.
-          </small>
-          <button type="button" id="download-template-btn" class="btn-link">📥 Download Sample CSV Template</button>
         </div>
+        <a href="/birthday" class="portal-btn">
+          Open Birthday Wishes Sender &rarr;
+        </a>
+      </div>
 
-        <!-- CSV Preview & Import Button -->
-        <div id="csv-preview-container" class="hidden">
-          <div class="card-header-row preview-header">
-            <h4>Preview: <span id="csv-preview-count">0</span> contacts ready to import</h4>
-            <button type="button" id="import-contacts-btn" class="btn-send">Import All Contacts to Database 🚀</button>
-          </div>
-          <div class="table-responsive">
-            <table class="preview-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Name</th>
-                  <th>Birthday</th>
-                  <th>Email</th>
-                  <th>WhatsApp</th>
-                  <th>Status</th>
-                  <th>Expected Finish</th>
-                </tr>
-              </thead>
-              <tbody id="csv-preview-tbody">
-              </tbody>
-            </table>
-          </div>
-          <div class="csv-bottom-actions" style="margin-top: 1rem; text-align: right;">
-            <button type="button" id="import-contacts-bottom-btn" class="btn-send">Import All Contacts to Database 🚀</button>
-          </div>
+      <!-- Service 2: ID Card Portal -->
+      <div class="portal-card">
+        <div>
+          <div class="portal-card-icon">🪪</div>
+          <h2>ID Card Portal</h2>
+          <p>
+            Official university identification card processing and issuance for students and staff.
+          </p>
         </div>
+        <a href="/idcard" class="portal-btn portal-btn-secondary">
+          Open ID Card Portal &rarr;
+        </a>
       </div>
     </div>
 
-    <!-- ============ TODAY'S BIRTHDAYS CARD ============ -->
-    <div class="card highlight-card">
-      <div class="card-header-row">
-        <h2>🎉 Today's Birthdays</h2>
-        <span id="todays-count" class="badge badge-today">0 today</span>
-      </div>
-      <div id="todays-birthdays">
-        <p class="placeholder">No birthdays today.</p>
-      </div>
-      <div id="todays-pagination" class="pagination-bar hidden">
-        <button type="button" id="todays-prev-btn" class="btn-pagination" disabled aria-label="Previous 5">&larr; Previous</button>
-        <span id="todays-page-info" class="pagination-info">1-5 of 10</span>
-        <button type="button" id="todays-next-btn" class="btn-pagination" aria-label="Next 5">Next &rarr;</button>
-      </div>
-    </div>
-
-    <!-- ============ UPCOMING BIRTHDAYS CARD (NEXT 7 DAYS) ============ -->
-    <div class="card upcoming-card">
-      <div class="card-header-row">
-        <h2>📅 Upcoming Birthdays (Next 7 Days)</h2>
-        <span id="upcoming-count" class="badge badge-upcoming">0 upcoming</span>
-      </div>
-      <p class="card-description">Birthdays coming up in one week (next 7 days):</p>
-      <div id="upcoming-birthdays">
-        <p class="placeholder">No upcoming birthdays in the next 7 days.</p>
-      </div>
-      <div id="upcoming-pagination" class="pagination-bar hidden">
-        <button type="button" id="upcoming-prev-btn" class="btn-pagination" disabled aria-label="Previous 5">&larr; Previous</button>
-        <span id="upcoming-page-info" class="pagination-info">1-5 of 10</span>
-        <button type="button" id="upcoming-next-btn" class="btn-pagination" aria-label="Next 5">Next &rarr;</button>
-      </div>
-    </div>
-
-    <!-- ============ MISSED BIRTHDAYS CARD ============ -->
-    <div class="card missed-card">
-      <div class="card-header-row">
-        <h2>⚠️ Missed Birthdays</h2>
-        <span id="missed-count" class="badge badge-missed">0 missed</span>
-      </div>
-      <p class="card-description">Birthdays that passed this year without an email or WhatsApp greeting sent:</p>
-      <div id="missed-birthdays">
-        <p class="placeholder">No missed birthdays! All past birthdays have been greeted. 🌟</p>
-      </div>
-      <div id="missed-pagination" class="pagination-bar hidden">
-        <button type="button" id="missed-prev-btn" class="btn-pagination" disabled aria-label="Previous 5">&larr; Previous</button>
-        <span id="missed-page-info" class="pagination-info">1-5 of 10</span>
-        <button type="button" id="missed-next-btn" class="btn-pagination" aria-label="Next 5">Next &rarr;</button>
-      </div>
-    </div>
-
-    <!-- ============ ALL CONTACTS LIST ============ -->
-    <div class="card">
-      <div class="card-header-row">
-        <h2>Your Birthday Contacts</h2>
-        <span id="contacts-count" class="badge">0 contacts</span>
-      </div>
-
-      <!-- Search & Filter Bar -->
-      <div class="search-bar-container">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="contact-search" placeholder="Search contacts by name, email, phone, status..." autocomplete="off" />
-        <button type="button" id="clear-search-btn" class="btn-clear hidden" title="Clear search">&times;</button>
-      </div>
-
-      <div id="contacts-list">
-        <p class="placeholder">No contacts yet. Add one above!</p>
-      </div>
-      <div id="contacts-pagination" class="pagination-bar hidden">
-        <button type="button" id="contacts-prev-btn" class="btn-pagination" disabled aria-label="Previous 5">&larr; Previous</button>
-        <span id="contacts-page-info" class="pagination-info">1-5 of 10</span>
-        <button type="button" id="contacts-next-btn" class="btn-pagination" aria-label="Next 5">Next &rarr;</button>
-      </div>
-    </div>
+    <footer class="portal-footer">
+      <p>&copy; Crawford University's PRO Office. All rights reserved.</p>
+    </footer>
   </div>
-
-  <!-- Firebase Modular Scripts -->
-  <script type="module" src="firebase-config.js"></script>
-  <script type="module" src="auth.js?v=2.2"></script>
-  <script type="module" src="app.js?v=2.2"></script>
 </body>
 </html>

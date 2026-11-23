@@ -217,6 +217,10 @@ onAuthStateChanged(auth, (user) => {
 function listenToContacts() {
   if (unsubscribeRtdb) unsubscribeRtdb();
 
+  const user = auth.currentUser;
+  if (!user || !user.email) return;
+  const currentUserEmail = user.email.toLowerCase().trim();
+
   const contactsRef = ref(rtdb, "contacts");
   unsubscribeRtdb = onValue(
     contactsRef,
@@ -226,7 +230,15 @@ function listenToContacts() {
       const activeContacts = [];
 
       snapshot.forEach((childSnap) => {
-        const contact = { id: childSnap.key, ...childSnap.val() };
+        const val = childSnap.val();
+        if (!val) return;
+        const contact = { id: childSnap.key, ...val };
+        const creator = (contact.createdBy || "").toLowerCase().trim();
+
+        // Separate contacts: each account only sees and manages their own contacts
+        if (creator !== currentUserEmail) {
+          return;
+        }
 
         if (isStudentExpired(contact)) {
           expiredContacts.push(contact);
@@ -590,8 +602,8 @@ function getDaysUntilBirthday(birthdayStr) {
 
   const str = String(birthdayStr).trim().replace(/[T\s].*$/, "");
 
-  // 1. ISO format: YYYY-MM-DD
-  const isoMatch = str.match(/^\d{4}-(\d{1,2})-(\d{1,2})/);
+  // 1. ISO format: YYYY-MM-DD or YYYY/MM/DD
+  const isoMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
   if (isoMatch) {
     month = parseInt(isoMatch[2], 10) - 1;
     day = parseInt(isoMatch[3], 10);
@@ -732,14 +744,33 @@ function renderMissedBirthdaysPage() {
 
 function getDaysAgoThisYear(birthdayStr) {
   if (!birthdayStr) return null;
-  const parts = birthdayStr.split("-");
-  if (parts.length < 3) return null;
+  let month = null;
+  let day = null;
+
+  const str = String(birthdayStr).trim().replace(/[T\s].*$/, "");
+  const isoMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (isoMatch) {
+    month = parseInt(isoMatch[2], 10) - 1;
+    day = parseInt(isoMatch[3], 10);
+  } else {
+    const slashMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})/);
+    if (slashMatch) {
+      const p1 = parseInt(slashMatch[1], 10);
+      const p2 = parseInt(slashMatch[2], 10);
+      if (p1 > 12) {
+        day = p1;
+        month = p2 - 1;
+      } else {
+        month = p1 - 1;
+        day = p2;
+      }
+    }
+  }
+
+  if (month === null || day === null || isNaN(month) || isNaN(day)) return null;
 
   const now = new Date();
   const currentYear = now.getFullYear();
-  const month = parseInt(parts[1], 10) - 1;
-  const day = parseInt(parts[2], 10);
-
   const bdayThisYear = new Date(currentYear, month, day);
   const today = new Date(currentYear, now.getMonth(), now.getDate());
 
@@ -802,7 +833,7 @@ contactForm.addEventListener("submit", async (e) => {
       showToast("Contact updated in database ✅");
     } else {
       payload.createdAt = Date.now();
-      payload.createdBy = user.email;
+      payload.createdBy = (user.email || "").toLowerCase().trim();
       const newRef = push(ref(rtdb, "contacts"));
       await set(newRef, payload);
       showToast("Contact added to database 🎉");
@@ -1211,7 +1242,7 @@ async function executeBatchImport() {
     let successCount = 0;
 
     for (const contact of parsedCsvContacts) {
-      contact.createdBy = user.email;
+      contact.createdBy = (user.email || "").toLowerCase().trim();
       contact.createdAt = Date.now();
       contact.updatedAt = Date.now();
       const newRef = push(contactsRef);
@@ -1444,13 +1475,27 @@ function todayMMDD() {
 
 function formatBirthday(dateStr) {
   if (!dateStr) return "—";
-  const parts = String(dateStr).split("-");
-  if (parts.length === 3) {
-    const [y, m, d] = parts;
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    const mIdx = parseInt(m, 10) - 1;
-    const mName = months[mIdx] || m;
-    return `${mName} ${parseInt(d, 10)}`;
+  const str = String(dateStr).trim();
+  const parts = str.split(/[-/.]/);
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  // YYYY-MM-DD
+  if (parts.length === 3 && parts[0].length === 4) {
+    const mIdx = parseInt(parts[1], 10) - 1;
+    const mName = months[mIdx] || parts[1];
+    return `${mName} ${parseInt(parts[2], 10)}`;
+  }
+  // DD-MM-YYYY or MM-DD-YYYY
+  if (parts.length === 3 && parts[2].length === 4) {
+    const p1 = parseInt(parts[0], 10);
+    const p2 = parseInt(parts[1], 10);
+    if (p1 > 12) {
+      const mName = months[p2 - 1] || p2;
+      return `${mName} ${p1}`;
+    } else {
+      const mName = months[p1 - 1] || p1;
+      return `${mName} ${p2}`;
+    }
   }
   return dateStr;
 }

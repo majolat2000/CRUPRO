@@ -2,12 +2,30 @@
   "hosting": {
     "site": "cruprosite",
     "public": "public",
+    "cleanUrls": true,
+    "trailingSlash": false,
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/birthday/**",
+        "destination": "/birthday/index.html"
+      },
+      {
+        "source": "/birthday",
+        "destination": "/birthday/index.html"
+      },
+      {
+        "source": "/idcard/**",
+        "destination": "/idcard/index.html"
+      },
+      {
+        "source": "/idcard",
+        "destination": "/idcard/index.html"
+      },
       {
         "source": "**",
         "destination": "/index.html"
