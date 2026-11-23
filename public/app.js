@@ -52,6 +52,8 @@ const contactsList       = document.getElementById("contacts-list");
 const contactsCount      = document.getElementById("contacts-count");
 const todaysList         = document.getElementById("todays-birthdays");
 const todaysCount        = document.getElementById("todays-count");
+const upcomingList       = document.getElementById("upcoming-birthdays");
+const upcomingCount      = document.getElementById("upcoming-count");
 const missedList         = document.getElementById("missed-birthdays");
 const missedCount        = document.getElementById("missed-count");
 
@@ -158,9 +160,11 @@ onAuthStateChanged(auth, (user) => {
     contactsMap.clear();
     contactsList.innerHTML = '<p class="placeholder">No contacts yet. Add one above!</p>';
     todaysList.innerHTML   = '<p class="placeholder">No birthdays today.</p>';
+    if (upcomingList) upcomingList.innerHTML = '<p class="placeholder">No upcoming birthdays in the next 7 days.</p>';
     missedList.innerHTML   = '<p class="placeholder">No missed birthdays! All past birthdays have been greeted. 🌟</p>';
     if (contactsCount) contactsCount.textContent = "0 contacts";
     if (todaysCount)   todaysCount.textContent   = "0 today";
+    if (upcomingCount) upcomingCount.textContent = "0 upcoming";
     if (missedCount)   missedCount.textContent   = "0 missed";
     resetForm();
   }
@@ -200,15 +204,16 @@ function listenToContacts() {
         }
       }
 
-      // Sort all active contacts by upcoming birthday (MM-DD)
+      // Sort all active contacts by nearest upcoming birthday
       activeContacts.sort((a, b) => {
-        const bdayA = (a.birthday || "").slice(5);
-        const bdayB = (b.birthday || "").slice(5);
-        return bdayA.localeCompare(bdayB);
+        const daysA = getDaysUntilBirthday(a.birthday) ?? 999;
+        const daysB = getDaysUntilBirthday(b.birthday) ?? 999;
+        return daysA - daysB;
       });
 
       filterAndRenderContacts();
       renderTodaysBirthdays(activeContacts);
+      renderUpcomingBirthdays(activeContacts);
       renderMissedBirthdays(activeContacts);
     },
     (error) => {
@@ -224,18 +229,16 @@ function isStudentExpired(c) {
 
   let finishYear = c.finishYear;
   if (!finishYear && c.expectedFinishDate) {
-    const match = c.expectedFinishDate.match(/\d{4}/);
+    const match = String(c.expectedFinishDate).match(/\d{4}/);
     if (match) finishYear = parseInt(match[0], 10);
   }
   if (!finishYear) return false;
 
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1; // 1-12
 
-  // Reached or passed November (month 11) of their finish year
+  // Prune student contact once the finish year has completed
   if (currentYear > finishYear) return true;
-  if (currentYear === finishYear && currentMonth >= 11) return true;
   return false;
 }
 
@@ -326,8 +329,7 @@ function renderContacts(contacts, totalCount) {
 
 // ============ Render Today's Birthdays ============
 function renderTodaysBirthdays(contacts) {
-  const today = todayMMDD();
-  const matches = contacts.filter((c) => c.birthday && c.birthday.slice(5) === today);
+  const matches = contacts.filter((c) => getDaysUntilBirthday(c.birthday) === 0);
 
   if (todaysCount) {
     todaysCount.textContent = `${matches.length} today`;
@@ -361,6 +363,125 @@ function renderTodaysBirthdays(contacts) {
         </div>`;
     })
     .join("");
+}
+
+// ============ Render Upcoming Birthdays (Next 7 Days) ============
+function renderUpcomingBirthdays(contacts) {
+  if (!upcomingList) return;
+
+  const upcoming = [];
+
+  contacts.forEach((c) => {
+    const daysUntil = getDaysUntilBirthday(c.birthday);
+    if (daysUntil !== null && daysUntil >= 1 && daysUntil <= 7) {
+      upcoming.push({
+        ...c,
+        daysUntil
+      });
+    }
+  });
+
+  upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
+
+  if (upcomingCount) {
+    upcomingCount.textContent = `${upcoming.length} upcoming`;
+  }
+
+  if (upcoming.length === 0) {
+    upcomingList.innerHTML = '<p class="placeholder">No upcoming birthdays in the next 7 days.</p>';
+    return;
+  }
+
+  upcomingList.innerHTML = upcoming
+    .map((c) => {
+      const bday = formatBirthday(c.birthday);
+      const pillText = c.daysUntil === 1 ? "Tomorrow ⏰" : `In ${c.daysUntil} days 📅`;
+
+      return `
+        <div class="birthday-upcoming-card">
+          <div class="info">
+            <strong>${escapeHtml(c.name)} <span class="upcoming-pill">${pillText}</span></strong>
+            <span>🎂 Birthday is on ${bday} · ${escapeHtml(c.email)}</span>
+          </div>
+          <div class="birthday-today-actions">
+            <button class="btn-send" onclick="window.__sendEmailWish('${c.id}', false)" title="Send Email Greeting">
+              Email Wish ✉️
+            </button>
+            ${
+              c.whatsapp
+                ? `<button class="btn-whatsapp" onclick="window.__sendWhatsAppWish('${c.id}', false)" title="Send WhatsApp Greeting">
+                    WhatsApp Wish 💬
+                  </button>`
+                : ""
+            }
+          </div>
+        </div>`;
+    })
+    .join("");
+}
+
+// Calculate days from today until the contact's upcoming birthday (0 = today, 1..7 = upcoming week)
+function getDaysUntilBirthday(birthdayStr) {
+  if (!birthdayStr) return null;
+
+  let month = null; // 0-11
+  let day = null;   // 1-31
+
+  const str = String(birthdayStr).trim().replace(/[T\s].*$/, "");
+
+  // 1. ISO format: YYYY-MM-DD
+  const isoMatch = str.match(/^\d{4}-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    month = parseInt(isoMatch[2], 10) - 1;
+    day = parseInt(isoMatch[3], 10);
+  } else {
+    // 2. Slash/dash format: DD/MM/YYYY or MM/DD/YYYY or DD/MM or MM/DD
+    const slashMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})/);
+    if (slashMatch) {
+      const p1 = parseInt(slashMatch[1], 10);
+      const p2 = parseInt(slashMatch[2], 10);
+      if (p1 > 12) {
+        day = p1;
+        month = p2 - 1;
+      } else {
+        month = p1 - 1;
+        day = p2;
+      }
+    }
+  }
+
+  // 3. Textual date: "April 15", "15 April", "Nov 20"
+  if (month === null || day === null || isNaN(month) || isNaN(day)) {
+    const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+    const lower = str.toLowerCase();
+    for (let mIdx = 0; mIdx < months.length; mIdx++) {
+      if (lower.includes(months[mIdx])) {
+        const dayMatch = str.match(/\b([1-9]|[12][0-9]|3[01])(st|nd|rd|th)?\b/i);
+        if (dayMatch) {
+          month = mIdx;
+          day = parseInt(dayMatch[1], 10);
+          break;
+        }
+      }
+    }
+  }
+
+  if (month === null || day === null || isNaN(month) || isNaN(day)) return null;
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const today = new Date(currentYear, now.getMonth(), now.getDate());
+
+  let bdayDate = new Date(currentYear, month, day);
+
+  // If birthday already passed earlier this year, check next year
+  if (bdayDate < today) {
+    bdayDate = new Date(currentYear + 1, month, day);
+  }
+
+  const diffMs = bdayDate.getTime() - today.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  return diffDays;
 }
 
 // ============ Render Missed Birthdays ============
