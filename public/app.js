@@ -566,8 +566,14 @@ function handleCsvFile(file) {
 
   const reader = new FileReader();
   reader.onload = (event) => {
-    const text = event.target.result;
-    processCsvData(text);
+    try {
+      const text = event.target.result;
+      processCsvData(text);
+    } catch (err) {
+      console.error("Error processing CSV data:", err);
+      setCsvStatus(`Error reading CSV: ${err.message || err} ❌`, "error");
+      showToast(`Error processing CSV: ${err.message || err} ❌`);
+    }
   };
   reader.onerror = () => {
     setCsvStatus("Error reading CSV file from disk ❌", "error");
@@ -1108,6 +1114,43 @@ function defaultWish(name) {
 // Customized Belated Birthday Wish from Crawford University's PRO Office
 function defaultBelatedWish(name) {
   return `Happy Belated Birthday, ${name}! 🎂🎉\n\nWe hope your special day was truly blessed and wonderful! Wishing you an incredible year ahead filled with divine favor, peace, and great success.\n\nWith love from Crawford University's PRO Office ❤️`;
+}
+
+// ============ Helper Functions ============
+function resetForm() {
+  contactForm.reset();
+  editIdInput.value = "";
+  formTitle.textContent = "Add a Birthday Contact";
+  saveBtn.textContent = "Add Contact";
+  cancelEditBtn.classList.add("hidden");
+  studentFinishGroup.classList.add("hidden");
+  finishDateSelect.removeAttribute("required");
+}
+
+function todayMMDD() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${mm}-${dd}`;
+}
+
+function formatBirthday(dateStr) {
+  if (!dateStr) return "—";
+  const parts = String(dateStr).split("-");
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const mIdx = parseInt(m, 10) - 1;
+    const mName = months[mIdx] || m;
+    return `${mName} ${parseInt(d, 10)}`;
+  }
+  return dateStr;
+}
+
+function extractYear(str) {
+  if (!str) return new Date().getFullYear();
+  const match = String(str).match(/\d{4}/);
+  return match ? parseInt(match[0], 10) : new Date().getFullYear();
 }
 
 function escapeHtml(text) {
