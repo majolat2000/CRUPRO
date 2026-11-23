@@ -24,15 +24,21 @@
       }
     } catch (_) {}
   </script>
-  <link rel="stylesheet" href="/style.css?v=2.4" />
+  <link rel="stylesheet" href="/style.css?v=2.5" />
 </head>
 <body>
 
   <!-- ============ INITIAL AUTH LOADING STATE ============ -->
-  <div id="auth-loading" class="container" style="text-align: center; padding: 5rem 1rem; color: #ffffff;">
+  <div id="auth-loading" class="container" style="text-align: center; padding: 4rem 1rem; color: #ffffff;">
     <div class="auth-loading-spinner"></div>
     <p style="margin-top: 1.25rem; font-weight: 500; font-size: 1.05rem;">Loading Birthday Wishes Sender...</p>
   </div>
+  <script>
+    setTimeout(function() {
+      var l = document.getElementById("auth-loading");
+      if (l) { l.style.display = "none"; l.remove(); }
+    }, 2000);
+  </script>
 
   <!-- ============ AUTH SECTION (SIGN IN ONLY) ============ -->
   <div id="auth-section" class="container hidden">
@@ -306,7 +312,7 @@
 
   <!-- Firebase Modular Scripts -->
   <script type="module" src="/firebase-config.js"></script>
-  <script type="module" src="/auth.js?v=2.3"></script>
-  <script type="module" src="/app.js?v=2.3"></script>
+  <script type="module" src="/auth.js?v=2.5"></script>
+  <script type="module" src="/app.js?v=2.5"></script>
 </body>
 </html>

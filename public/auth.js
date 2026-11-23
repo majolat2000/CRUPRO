@@ -118,7 +118,10 @@ signOutBtn.addEventListener("click", async () => {
 // ============ Session Observer ============
 onAuthStateChanged(auth, async (user) => {
   const authLoading = document.getElementById("auth-loading");
-  if (authLoading) authLoading.classList.add("hidden");
+  if (authLoading) {
+    authLoading.style.display = "none";
+    authLoading.remove();
+  }
 
   if (user) {
     const email = (user.email || "").toLowerCase();

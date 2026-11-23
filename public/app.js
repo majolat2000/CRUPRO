@@ -185,6 +185,12 @@ if (clearSearchBtn) {
 
 // ============ Realtime Database Contacts Listener ============
 onAuthStateChanged(auth, (user) => {
+  const authLoading = document.getElementById("auth-loading");
+  if (authLoading) {
+    authLoading.style.display = "none";
+    authLoading.remove();
+  }
+
   if (user) {
     populateExpectedFinishOptions();
     listenToContacts();
