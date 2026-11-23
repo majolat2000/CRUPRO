@@ -17,13 +17,25 @@
         );
       }
     })();
+    // Prevent flash of login form when already authenticated
+    try {
+      if (localStorage.getItem("crupro_session") === "true") {
+        document.documentElement.classList.add("has-session");
+      }
+    } catch (_) {}
   </script>
-  <link rel="stylesheet" href="/style.css?v=2.3" />
+  <link rel="stylesheet" href="/style.css?v=2.4" />
 </head>
 <body>
 
+  <!-- ============ INITIAL AUTH LOADING STATE ============ -->
+  <div id="auth-loading" class="container" style="text-align: center; padding: 5rem 1rem; color: #ffffff;">
+    <div class="auth-loading-spinner"></div>
+    <p style="margin-top: 1.25rem; font-weight: 500; font-size: 1.05rem;">Loading Birthday Wishes Sender...</p>
+  </div>
+
   <!-- ============ AUTH SECTION (SIGN IN ONLY) ============ -->
-  <div id="auth-section" class="container">
+  <div id="auth-section" class="container hidden">
     <div class="portal-nav-bar">
       <a href="/" class="portal-back-btn">← Back to PRO Office Portal</a>
     </div>

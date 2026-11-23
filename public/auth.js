@@ -106,6 +106,8 @@ authForm.addEventListener("submit", async (e) => {
 // ============ Sign Out ============
 signOutBtn.addEventListener("click", async () => {
   try {
+    try { localStorage.removeItem("crupro_session"); } catch (_) {}
+    document.documentElement.classList.remove("has-session");
     await signOut(auth);
     showToast("Signed out successfully");
   } catch (err) {
@@ -115,9 +117,14 @@ signOutBtn.addEventListener("click", async () => {
 
 // ============ Session Observer ============
 onAuthStateChanged(auth, async (user) => {
+  const authLoading = document.getElementById("auth-loading");
+  if (authLoading) authLoading.classList.add("hidden");
+
   if (user) {
     const email = (user.email || "").toLowerCase();
     if (!ALLOWED_EMAILS.includes(email)) {
+      try { localStorage.removeItem("crupro_session"); } catch (_) {}
+      document.documentElement.classList.remove("has-session");
       await signOut(auth);
       authError.textContent = "Access denied: Unauthorized email account.";
       authSection.classList.remove("hidden");
@@ -125,6 +132,8 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
 
+    try { localStorage.setItem("crupro_session", "true"); } catch (_) {}
+    document.documentElement.classList.add("has-session");
     authSection.classList.add("hidden");
     appSection.classList.remove("hidden");
     userEmailEl.textContent = user.email;
@@ -146,6 +155,8 @@ onAuthStateChanged(auth, async (user) => {
     }
 
   } else {
+    try { localStorage.removeItem("crupro_session"); } catch (_) {}
+    document.documentElement.classList.remove("has-session");
     authSection.classList.remove("hidden");
     appSection.classList.add("hidden");
     userEmailEl.textContent = "";

@@ -666,6 +666,17 @@ function renderMissedBirthdays(contacts) {
     const diffDays = getDaysAgoThisYear(c.birthday);
     if (diffDays !== null && diffDays > 0) {
       if (c.lastWishedYear !== currentYear) {
+        // Only count birthdays missed from the date the contact was added.
+        // If a contact was added today but their birthday was last week,
+        // it does not count as missed. But if added on/before that birthday, it counts.
+        const createdDate = getContactCreatedDate(c);
+        if (createdDate) {
+          const bdayDateThisYear = getBirthdayDateThisYear(c.birthday, currentYear);
+          if (bdayDateThisYear && bdayDateThisYear < createdDate) {
+            return;
+          }
+        }
+
         missed.push({
           ...c,
           daysAgo: diffDays
@@ -777,6 +788,66 @@ function getDaysAgoThisYear(birthdayStr) {
   const diffMs = today.getTime() - bdayThisYear.getTime();
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   return diffDays;
+}
+
+// Extract calendar date (midnight) when contact was added
+function getContactCreatedDate(contact) {
+  if (contact.createdAt) {
+    const t = typeof contact.createdAt === "number" ? contact.createdAt : Date.parse(contact.createdAt);
+    if (!isNaN(t) && t > 0) {
+      const d = new Date(t);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+  }
+  // Fallback: decode timestamp embedded in Firebase Push ID
+  if (contact.id && typeof contact.id === "string" && contact.id.length >= 8) {
+    try {
+      const PUSH_CHARS = "-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
+      let time = 0;
+      for (let i = 0; i < 8; i++) {
+        const c = contact.id.charAt(i);
+        const idx = PUSH_CHARS.indexOf(c);
+        if (idx === -1) { time = 0; break; }
+        time = time * 64 + idx;
+      }
+      if (time > 1577836800000) { // after 2020
+        const d = new Date(time);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+// Get Date object (midnight) of birthday in a specific year
+function getBirthdayDateThisYear(birthdayStr, year) {
+  if (!birthdayStr) return null;
+  const currentYear = year || new Date().getFullYear();
+  let month = null;
+  let day = null;
+
+  const str = String(birthdayStr).trim().replace(/[T\s].*$/, "");
+  const isoMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (isoMatch) {
+    month = parseInt(isoMatch[2], 10) - 1;
+    day = parseInt(isoMatch[3], 10);
+  } else {
+    const slashMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})/);
+    if (slashMatch) {
+      const p1 = parseInt(slashMatch[1], 10);
+      const p2 = parseInt(slashMatch[2], 10);
+      if (p1 > 12) {
+        day = p1;
+        month = p2 - 1;
+      } else {
+        month = p1 - 1;
+        day = p2;
+      }
+    }
+  }
+
+  if (month === null || day === null || isNaN(month) || isNaN(day)) return null;
+  return new Date(currentYear, month, day);
 }
 
 // ============ CRUD: Add / Update Single Contact ============
