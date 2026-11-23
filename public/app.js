@@ -52,10 +52,44 @@ const contactsList       = document.getElementById("contacts-list");
 const contactsCount      = document.getElementById("contacts-count");
 const todaysList         = document.getElementById("todays-birthdays");
 const todaysCount        = document.getElementById("todays-count");
+const todaysPagination   = document.getElementById("todays-pagination");
+const todaysPrevBtn      = document.getElementById("todays-prev-btn");
+const todaysNextBtn      = document.getElementById("todays-next-btn");
+const todaysPageInfo     = document.getElementById("todays-page-info");
+
 const upcomingList       = document.getElementById("upcoming-birthdays");
 const upcomingCount      = document.getElementById("upcoming-count");
+const upcomingPagination = document.getElementById("upcoming-pagination");
+const upcomingPrevBtn    = document.getElementById("upcoming-prev-btn");
+const upcomingNextBtn    = document.getElementById("upcoming-next-btn");
+const upcomingPageInfo   = document.getElementById("upcoming-page-info");
+
 const missedList         = document.getElementById("missed-birthdays");
 const missedCount        = document.getElementById("missed-count");
+const missedPagination   = document.getElementById("missed-pagination");
+const missedPrevBtn      = document.getElementById("missed-prev-btn");
+const missedNextBtn      = document.getElementById("missed-next-btn");
+const missedPageInfo     = document.getElementById("missed-page-info");
+
+const contactsPagination = document.getElementById("contacts-pagination");
+const contactsPrevBtn    = document.getElementById("contacts-prev-btn");
+const contactsNextBtn    = document.getElementById("contacts-next-btn");
+const contactsPageInfo   = document.getElementById("contacts-page-info");
+
+// Pagination configuration & per-section states (5 per row/page)
+const PAGE_SIZE = 5;
+const pageState = {
+  todays: 1,
+  upcoming: 1,
+  missed: 1,
+  contacts: 1
+};
+
+let cachedTodaysList = [];
+let cachedUpcomingList = [];
+let cachedMissedList = [];
+let cachedContactsList = [];
+let cachedContactsTotalCount = 0;
 
 let unsubscribeRtdb = null;
 const contactsMap = new Map();
@@ -126,6 +160,7 @@ statusSelect.addEventListener("change", () => {
 if (searchInput) {
   searchInput.addEventListener("input", (e) => {
     currentSearchQuery = e.target.value.trim().toLowerCase();
+    pageState.contacts = 1;
     if (clearSearchBtn) {
       if (currentSearchQuery.length > 0) {
         clearSearchBtn.classList.remove("hidden");
@@ -141,6 +176,7 @@ if (clearSearchBtn) {
   clearSearchBtn.addEventListener("click", () => {
     searchInput.value = "";
     currentSearchQuery = "";
+    pageState.contacts = 1;
     clearSearchBtn.classList.add("hidden");
     filterAndRenderContacts();
     searchInput.focus();
@@ -166,6 +202,14 @@ onAuthStateChanged(auth, (user) => {
     if (todaysCount)   todaysCount.textContent   = "0 today";
     if (upcomingCount) upcomingCount.textContent = "0 upcoming";
     if (missedCount)   missedCount.textContent   = "0 missed";
+    if (todaysPagination) todaysPagination.classList.add("hidden");
+    if (upcomingPagination) upcomingPagination.classList.add("hidden");
+    if (missedPagination) missedPagination.classList.add("hidden");
+    if (contactsPagination) contactsPagination.classList.add("hidden");
+    pageState.todays = 1;
+    pageState.upcoming = 1;
+    pageState.missed = 1;
+    pageState.contacts = 1;
     resetForm();
   }
 });
@@ -270,7 +314,51 @@ function filterAndRenderContacts() {
   renderContacts(filtered, all.length);
 }
 
+// ============ Generic 5-Item Pagination Helper ============
+function updatePaginationUI(container, infoEl, prevBtn, nextBtn, totalItems, currentPage, onPageChange) {
+  if (!container || !infoEl || !prevBtn || !nextBtn) return;
+
+  if (totalItems <= PAGE_SIZE) {
+    container.classList.add("hidden");
+    return;
+  }
+
+  container.classList.remove("hidden");
+  const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const start = (safePage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(safePage * PAGE_SIZE, totalItems);
+
+  infoEl.textContent = `${start}–${end} of ${totalItems}`;
+
+  prevBtn.disabled = safePage <= 1;
+  nextBtn.disabled = safePage >= totalPages;
+
+  prevBtn.onclick = () => {
+    if (safePage > 1) {
+      onPageChange(safePage - 1);
+    }
+  };
+
+  nextBtn.onclick = () => {
+    if (safePage < totalPages) {
+      onPageChange(safePage + 1);
+    }
+  };
+}
+
+// ============ Render All Contacts (5 per page) ============
 function renderContacts(contacts, totalCount) {
+  cachedContactsList = contacts;
+  cachedContactsTotalCount = totalCount;
+  renderContactsPage();
+}
+
+function renderContactsPage() {
+  const totalCount = cachedContactsTotalCount;
+  const contacts = cachedContactsList;
+
   if (contactsCount) {
     if (currentSearchQuery) {
       contactsCount.textContent = `${contacts.length} of ${totalCount} matching`;
@@ -280,6 +368,7 @@ function renderContacts(contacts, totalCount) {
   }
 
   if (contacts.length === 0) {
+    if (contactsPagination) contactsPagination.classList.add("hidden");
     if (currentSearchQuery) {
       contactsList.innerHTML = `<p class="placeholder">No contacts match "<strong>${escapeHtml(currentSearchQuery)}</strong>".</p>`;
     } else {
@@ -288,7 +377,13 @@ function renderContacts(contacts, totalCount) {
     return;
   }
 
-  contactsList.innerHTML = contacts
+  const totalPages = Math.ceil(contacts.length / PAGE_SIZE) || 1;
+  pageState.contacts = Math.min(Math.max(1, pageState.contacts), totalPages);
+
+  const startIdx = (pageState.contacts - 1) * PAGE_SIZE;
+  const pageItems = contacts.slice(startIdx, startIdx + PAGE_SIZE);
+
+  contactsList.innerHTML = pageItems
     .map((c) => {
       const bday = formatBirthday(c.birthday);
       const isStudent = c.status === "student";
@@ -325,22 +420,47 @@ function renderContacts(contacts, totalCount) {
         </div>`;
     })
     .join("");
+
+  updatePaginationUI(
+    contactsPagination,
+    contactsPageInfo,
+    contactsPrevBtn,
+    contactsNextBtn,
+    contacts.length,
+    pageState.contacts,
+    (newPage) => {
+      pageState.contacts = newPage;
+      renderContactsPage();
+    }
+  );
 }
 
-// ============ Render Today's Birthdays ============
+// ============ Render Today's Birthdays (5 per page) ============
 function renderTodaysBirthdays(contacts) {
-  const matches = contacts.filter((c) => getDaysUntilBirthday(c.birthday) === 0);
+  cachedTodaysList = contacts.filter((c) => getDaysUntilBirthday(c.birthday) === 0);
+  renderTodaysBirthdaysPage();
+}
+
+function renderTodaysBirthdaysPage() {
+  const matches = cachedTodaysList;
 
   if (todaysCount) {
     todaysCount.textContent = `${matches.length} today`;
   }
 
   if (matches.length === 0) {
+    if (todaysPagination) todaysPagination.classList.add("hidden");
     todaysList.innerHTML = '<p class="placeholder">No birthdays today.</p>';
     return;
   }
 
-  todaysList.innerHTML = matches
+  const totalPages = Math.ceil(matches.length / PAGE_SIZE) || 1;
+  pageState.todays = Math.min(Math.max(1, pageState.todays), totalPages);
+
+  const startIdx = (pageState.todays - 1) * PAGE_SIZE;
+  const pageItems = matches.slice(startIdx, startIdx + PAGE_SIZE);
+
+  todaysList.innerHTML = pageItems
     .map((c) => {
       return `
         <div class="birthday-today-card">
@@ -363,9 +483,22 @@ function renderTodaysBirthdays(contacts) {
         </div>`;
     })
     .join("");
+
+  updatePaginationUI(
+    todaysPagination,
+    todaysPageInfo,
+    todaysPrevBtn,
+    todaysNextBtn,
+    matches.length,
+    pageState.todays,
+    (newPage) => {
+      pageState.todays = newPage;
+      renderTodaysBirthdaysPage();
+    }
+  );
 }
 
-// ============ Render Upcoming Birthdays (Next 7 Days) ============
+// ============ Render Upcoming Birthdays (Next 7 Days, 5 per page) ============
 function renderUpcomingBirthdays(contacts) {
   if (!upcomingList) return;
 
@@ -382,17 +515,32 @@ function renderUpcomingBirthdays(contacts) {
   });
 
   upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
+  cachedUpcomingList = upcoming;
+  renderUpcomingBirthdaysPage();
+}
+
+function renderUpcomingBirthdaysPage() {
+  if (!upcomingList) return;
+
+  const upcoming = cachedUpcomingList;
 
   if (upcomingCount) {
     upcomingCount.textContent = `${upcoming.length} upcoming`;
   }
 
   if (upcoming.length === 0) {
+    if (upcomingPagination) upcomingPagination.classList.add("hidden");
     upcomingList.innerHTML = '<p class="placeholder">No upcoming birthdays in the next 7 days.</p>';
     return;
   }
 
-  upcomingList.innerHTML = upcoming
+  const totalPages = Math.ceil(upcoming.length / PAGE_SIZE) || 1;
+  pageState.upcoming = Math.min(Math.max(1, pageState.upcoming), totalPages);
+
+  const startIdx = (pageState.upcoming - 1) * PAGE_SIZE;
+  const pageItems = upcoming.slice(startIdx, startIdx + PAGE_SIZE);
+
+  upcomingList.innerHTML = pageItems
     .map((c) => {
       const bday = formatBirthday(c.birthday);
       const pillText = c.daysUntil === 1 ? "Tomorrow ⏰" : `In ${c.daysUntil} days 📅`;
@@ -418,6 +566,19 @@ function renderUpcomingBirthdays(contacts) {
         </div>`;
     })
     .join("");
+
+  updatePaginationUI(
+    upcomingPagination,
+    upcomingPageInfo,
+    upcomingPrevBtn,
+    upcomingNextBtn,
+    upcoming.length,
+    pageState.upcoming,
+    (newPage) => {
+      pageState.upcoming = newPage;
+      renderUpcomingBirthdaysPage();
+    }
+  );
 }
 
 // Calculate days from today until the contact's upcoming birthday (0 = today, 1..7 = upcoming week)
@@ -484,7 +645,7 @@ function getDaysUntilBirthday(birthdayStr) {
   return diffDays;
 }
 
-// ============ Render Missed Birthdays ============
+// ============ Render Missed Birthdays (5 per page) ============
 function renderMissedBirthdays(contacts) {
   const currentYear = new Date().getFullYear();
   const missed = [];
@@ -502,17 +663,30 @@ function renderMissedBirthdays(contacts) {
   });
 
   missed.sort((a, b) => a.daysAgo - b.daysAgo);
+  cachedMissedList = missed;
+  renderMissedBirthdaysPage();
+}
+
+function renderMissedBirthdaysPage() {
+  const missed = cachedMissedList;
 
   if (missedCount) {
     missedCount.textContent = `${missed.length} missed`;
   }
 
   if (missed.length === 0) {
+    if (missedPagination) missedPagination.classList.add("hidden");
     missedList.innerHTML = '<p class="placeholder">No missed birthdays! All past birthdays have been greeted. 🌟</p>';
     return;
   }
 
-  missedList.innerHTML = missed
+  const totalPages = Math.ceil(missed.length / PAGE_SIZE) || 1;
+  pageState.missed = Math.min(Math.max(1, pageState.missed), totalPages);
+
+  const startIdx = (pageState.missed - 1) * PAGE_SIZE;
+  const pageItems = missed.slice(startIdx, startIdx + PAGE_SIZE);
+
+  missedList.innerHTML = pageItems
     .map((c) => {
       const bday = formatBirthday(c.birthday);
       const daysText = c.daysAgo === 1 ? "1 day ago" : `${c.daysAgo} days ago`;
@@ -541,6 +715,19 @@ function renderMissedBirthdays(contacts) {
         </div>`;
     })
     .join("");
+
+  updatePaginationUI(
+    missedPagination,
+    missedPageInfo,
+    missedPrevBtn,
+    missedNextBtn,
+    missed.length,
+    pageState.missed,
+    (newPage) => {
+      pageState.missed = newPage;
+      renderMissedBirthdaysPage();
+    }
+  );
 }
 
 function getDaysAgoThisYear(birthdayStr) {

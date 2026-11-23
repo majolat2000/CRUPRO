@@ -813,6 +813,52 @@ button:disabled {
   background: #f7fafc;
 }
 
+/* ========== Pagination Controls (5 items per page) ========== */
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.85rem;
+  margin-top: 0.85rem;
+  border-top: 1px solid #edf2f7;
+}
+
+.pagination-info {
+  font-size: 0.85rem;
+  color: #718096;
+  font-weight: 600;
+}
+
+.btn-pagination {
+  background: #edf2f7;
+  color: #2d3748;
+  border: 1px solid #cbd5e0;
+  border-radius: 8px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-pagination:hover:not(:disabled) {
+  background: #667eea;
+  color: #ffffff;
+  border-color: #667eea;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.btn-pagination:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #f7fafc;
+  border-color: #e2e8f0;
+  color: #a0aec0;
+}
+
 /* ========== Responsive ========== */
 @media (max-width: 600px) {
   .form-row {

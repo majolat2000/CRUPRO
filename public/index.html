@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Birthday Wishes Sender</title>
-  <link rel="stylesheet" href="style.css?v=2.1" />
+  <link rel="stylesheet" href="style.css?v=2.2" />
 </head>
 <body>
 
@@ -196,6 +196,11 @@
       <div id="todays-birthdays">
         <p class="placeholder">No birthdays today.</p>
       </div>
+      <div id="todays-pagination" class="pagination-bar hidden">
+        <button type="button" id="todays-prev-btn" class="btn-pagination" disabled aria-label="Previous 5">&larr; Previous</button>
+        <span id="todays-page-info" class="pagination-info">1-5 of 10</span>
+        <button type="button" id="todays-next-btn" class="btn-pagination" aria-label="Next 5">Next &rarr;</button>
+      </div>
     </div>
 
     <!-- ============ UPCOMING BIRTHDAYS CARD (NEXT 7 DAYS) ============ -->
@@ -208,6 +213,11 @@
       <div id="upcoming-birthdays">
         <p class="placeholder">No upcoming birthdays in the next 7 days.</p>
       </div>
+      <div id="upcoming-pagination" class="pagination-bar hidden">
+        <button type="button" id="upcoming-prev-btn" class="btn-pagination" disabled aria-label="Previous 5">&larr; Previous</button>
+        <span id="upcoming-page-info" class="pagination-info">1-5 of 10</span>
+        <button type="button" id="upcoming-next-btn" class="btn-pagination" aria-label="Next 5">Next &rarr;</button>
+      </div>
     </div>
 
     <!-- ============ MISSED BIRTHDAYS CARD ============ -->
@@ -219,6 +229,11 @@
       <p class="card-description">Birthdays that passed this year without an email or WhatsApp greeting sent:</p>
       <div id="missed-birthdays">
         <p class="placeholder">No missed birthdays! All past birthdays have been greeted. 🌟</p>
+      </div>
+      <div id="missed-pagination" class="pagination-bar hidden">
+        <button type="button" id="missed-prev-btn" class="btn-pagination" disabled aria-label="Previous 5">&larr; Previous</button>
+        <span id="missed-page-info" class="pagination-info">1-5 of 10</span>
+        <button type="button" id="missed-next-btn" class="btn-pagination" aria-label="Next 5">Next &rarr;</button>
       </div>
     </div>
 
@@ -239,12 +254,17 @@
       <div id="contacts-list">
         <p class="placeholder">No contacts yet. Add one above!</p>
       </div>
+      <div id="contacts-pagination" class="pagination-bar hidden">
+        <button type="button" id="contacts-prev-btn" class="btn-pagination" disabled aria-label="Previous 5">&larr; Previous</button>
+        <span id="contacts-page-info" class="pagination-info">1-5 of 10</span>
+        <button type="button" id="contacts-next-btn" class="btn-pagination" aria-label="Next 5">Next &rarr;</button>
+      </div>
     </div>
   </div>
 
   <!-- Firebase Modular Scripts -->
   <script type="module" src="firebase-config.js"></script>
-  <script type="module" src="auth.js?v=2.1"></script>
-  <script type="module" src="app.js?v=2.1"></script>
+  <script type="module" src="auth.js?v=2.2"></script>
+  <script type="module" src="app.js?v=2.2"></script>
 </body>
 </html>
