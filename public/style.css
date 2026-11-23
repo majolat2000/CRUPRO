@@ -1037,7 +1037,8 @@ button:disabled {
   text-align: center;
   color: rgba(255, 255, 255, 0.75);
   font-size: 0.85rem;
-  margin-top: 2rem;
+  margin-top: 2.5rem;
+  padding-bottom: 2.5rem;
 }
 
 .portal-footer p {
