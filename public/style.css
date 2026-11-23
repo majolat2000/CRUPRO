@@ -608,7 +608,21 @@ button:disabled {
 }
 
 /* ========== CSV Upload Box ========== */
+.visually-hidden-input {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  opacity: 0 !important;
+}
+
 .csv-upload-box {
+  display: block;
   border: 2px dashed #cbd5e0;
   border-radius: 12px;
   padding: 2.5rem 1.5rem;
@@ -635,12 +649,43 @@ button:disabled {
   margin-bottom: 0.25rem;
 }
 
+.browse-btn-styled {
+  display: inline-block;
+  margin-top: 0.75rem;
+  padding: 0.65rem 1.4rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
 .csv-filename-text {
   display: block;
   margin-top: 0.75rem;
   font-weight: 600;
   color: #2b6cb0;
   font-size: 0.9rem;
+}
+
+.csv-status-msg {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  text-align: center;
+  min-height: 1.2rem;
+}
+
+.csv-status-msg.error {
+  color: #e53e3e;
+  font-weight: 600;
+}
+
+.csv-status-msg.success {
+  color: #38a169;
+  font-weight: 600;
+}
+
+.csv-status-msg.info {
+  color: #3182ce;
+  font-weight: 500;
 }
 
 .csv-template-row {

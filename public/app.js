@@ -32,15 +32,18 @@ const saveBtn            = document.getElementById("save-btn");
 const cancelEditBtn      = document.getElementById("cancel-edit-btn");
 
 // DOM references — CSV Import
-const csvDropZone        = document.getElementById("csv-drop-zone");
-const csvFileInput       = document.getElementById("csv-file-input");
-const browseCsvBtn       = document.getElementById("browse-csv-btn");
-const csvFilenameText    = document.getElementById("csv-filename");
-const downloadTemplateBtn = document.getElementById("download-template-btn");
-const csvPreviewContainer = document.getElementById("csv-preview-container");
-const csvPreviewCount    = document.getElementById("csv-preview-count");
-const csvPreviewTbody    = document.getElementById("csv-preview-tbody");
-const importContactsBtn  = document.getElementById("import-contacts-btn");
+const csvDropZone            = document.getElementById("csv-drop-zone");
+const csvFileInput           = document.getElementById("csv-file-input");
+const browseCsvBtn           = document.getElementById("browse-csv-btn");
+const csvFilenameText        = document.getElementById("csv-filename");
+const csvStatusMsg           = document.getElementById("csv-status-msg");
+const downloadTemplateBtn     = document.getElementById("download-template-btn");
+const csvPreviewContainer     = document.getElementById("csv-preview-container");
+const csvPreviewCount        = document.getElementById("csv-preview-count");
+const csvPreviewTbody        = document.getElementById("csv-preview-tbody");
+const importContactsBtn      = document.getElementById("import-contacts-btn");
+const importContactsBottomBtn = document.getElementById("import-contacts-bottom-btn");
+const switchCsvBtn           = document.getElementById("switch-to-csv-btn");
 
 // DOM references — Search & Lists
 const searchInput        = document.getElementById("contact-search");
@@ -71,6 +74,13 @@ if (tabSingleBtn && tabCsvBtn) {
     tabSingleBtn.classList.remove("active");
     csvImportPanel.classList.remove("hidden");
     singleContactPanel.classList.add("hidden");
+  });
+}
+
+if (switchCsvBtn && tabCsvBtn) {
+  switchCsvBtn.addEventListener("click", () => {
+    tabCsvBtn.click();
+    if (csvDropZone) csvDropZone.scrollIntoView({ behavior: "smooth" });
   });
 }
 
@@ -444,7 +454,7 @@ contactForm.addEventListener("submit", async (e) => {
   const emailVal     = emailInput.value.trim();
   const whatsappVal  = whatsappInput.value.trim();
   const statusVal    = statusSelect.value; // "staff" or "student"
-  const wishVal      = wishInput.value.trim() || defaultWish(nameVal);
+  const wishVal      = wishInput.value.trim();
 
   if (!nameVal || !birthdayVal || !emailVal || !whatsappVal || !statusVal) {
     showToast("Please complete all required fields ❌");
@@ -457,7 +467,7 @@ contactForm.addEventListener("submit", async (e) => {
     email: emailVal,
     whatsapp: whatsappVal,
     status: statusVal,
-    wishMessage: wishVal,
+    wishMessage: wishVal || "", // Leave blank if empty so official Crawford PRO greeting is rendered dynamically
     updatedAt: Date.now(),
     updatedBy: user.email
   };
@@ -504,20 +514,22 @@ cancelEditBtn.addEventListener("click", () => {
   resetForm();
 });
 
-// ============ CSV Upload & Parsing (Google Forms) ============
-if (browseCsvBtn && csvFileInput) {
-  browseCsvBtn.addEventListener("click", () => {
-    csvFileInput.click();
+// ============ CSV Upload & Parsing (Google Forms / Sheets) ============
+function setCsvStatus(msg, type = "info") {
+  if (!csvStatusMsg) return;
+  csvStatusMsg.textContent = msg;
+  csvStatusMsg.className = `csv-status-msg ${type}`;
+}
+
+if (csvFileInput) {
+  csvFileInput.addEventListener("change", (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleCsvFile(e.target.files[0]);
+    }
   });
 }
 
 if (csvDropZone) {
-  csvDropZone.addEventListener("click", (e) => {
-    if (e.target !== browseCsvBtn) {
-      csvFileInput.click();
-    }
-  });
-
   csvDropZone.addEventListener("dragover", (e) => {
     e.preventDefault();
     csvDropZone.classList.add("dragover");
@@ -536,23 +548,21 @@ if (csvDropZone) {
   });
 }
 
-if (csvFileInput) {
-  csvFileInput.addEventListener("change", (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleCsvFile(e.target.files[0]);
-    }
-  });
-}
-
 function handleCsvFile(file) {
-  if (!file.name.toLowerCase().endsWith(".csv")) {
+  if (!file) return;
+
+  const validExts = [".csv", ".txt"];
+  const isMatch = validExts.some((ext) => file.name.toLowerCase().endsWith(ext));
+  if (!isMatch && file.type && !file.type.includes("csv") && !file.type.includes("text")) {
+    setCsvStatus("Please select a .csv file (exported from Google Forms/Sheets) ❌", "error");
     showToast("Please upload a valid .csv file ❌");
     return;
   }
 
   if (csvFilenameText) {
-    csvFilenameText.textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    csvFilenameText.textContent = `📄 Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
   }
+  setCsvStatus("Reading file...", "info");
 
   const reader = new FileReader();
   reader.onload = (event) => {
@@ -560,13 +570,26 @@ function handleCsvFile(file) {
     processCsvData(text);
   };
   reader.onerror = () => {
+    setCsvStatus("Error reading CSV file from disk ❌", "error");
     showToast("Error reading CSV file ❌");
   };
   reader.readAsText(file);
 }
 
+// Auto-detect CSV delimiter (comma, semicolon, tab)
+function detectDelimiter(text) {
+  const firstLine = text.split(/\r\n|\r|\n/)[0] || "";
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semiCount  = (firstLine.match(/;/g) || []).length;
+  const tabCount   = (firstLine.match(/\t/g) || []).length;
+
+  if (semiCount > commaCount && semiCount > tabCount) return ";";
+  if (tabCount > commaCount && tabCount > semiCount) return "\t";
+  return ",";
+}
+
 // RFC 4180 compliant CSV line tokenizer
-function parseCsvRows(text) {
+function parseCsvRows(text, delimiter = ",") {
   const rows = [];
   let currentRow = [];
   let currentVal = "";
@@ -583,7 +606,7 @@ function parseCsvRows(text) {
       } else {
         insideQuote = !insideQuote;
       }
-    } else if (char === "," && !insideQuote) {
+    } else if (char === delimiter && !insideQuote) {
       currentRow.push(currentVal.trim());
       currentVal = "";
     } else if ((char === "\r" || char === "\n") && !insideQuote) {
@@ -613,35 +636,57 @@ function parseCsvRows(text) {
 
 // Intelligently map Google Forms CSV columns
 function processCsvData(csvText) {
-  const rows = parseCsvRows(csvText);
-  if (rows.length < 2) {
-    showToast("CSV file appears to be empty or missing data rows ❌");
+  csvText = (csvText || "").replace(/^\uFEFF/, "");
+  if (!csvText.trim()) {
+    setCsvStatus("The selected file is empty ❌", "error");
     return;
   }
 
-  const headers = rows[0].map((h) => h.toLowerCase());
+  const delimiter = detectDelimiter(csvText);
+  const rows = parseCsvRows(csvText, delimiter);
+  if (rows.length < 2) {
+    setCsvStatus("CSV file must contain a header row and at least one contact row ❌", "error");
+    return;
+  }
 
-  // Find column indices by common Google Forms headers
-  const nameIdx     = headers.findIndex((h) => /name|full\s*name|student\s*name|staff\s*name|respondent/i.test(h));
+  const headers = rows[0].map((h) => (h || "").trim().toLowerCase());
+
+  // Find column indices by common Google Forms questions & headers
+  const nameIdx     = headers.findIndex((h) => /name|respondent|student|staff|fullname|surname|person|who/i.test(h));
+  const birthdayIdx = headers.findIndex((h) => /birth|bday|dob|born|date.*birth|day.*birth/i.test(h));
   const emailIdx    = headers.findIndex((h) => /email|e-mail|mail/i.test(h));
-  const whatsappIdx = headers.findIndex((h) => /whatsapp|phone|mobile|tel|contact\s*no|number/i.test(h));
-  const birthdayIdx = headers.findIndex((h) => /birth|bday|dob|date\s*of\s*birth/i.test(h));
-  const statusIdx   = headers.findIndex((h) => /status|role|category|type|designation|cadre/i.test(h));
-  const finishIdx   = headers.findIndex((h) => /finish|graduat|year\s*left|expected|completion/i.test(h));
+  const whatsappIdx = headers.findIndex((h) => /whatsapp|phone|mobile|tel|contact|number|cell/i.test(h));
+  const statusIdx   = headers.findIndex((h) => /status|role|category|type|designation|cadre|level|student.*staff|staff.*student/i.test(h));
+  const finishIdx   = headers.findIndex((h) => /finish|graduat|expected|completion|year.*left/i.test(h));
 
   if (nameIdx === -1 || birthdayIdx === -1) {
-    showToast("Could not find required 'Name' and 'Birthday' columns in CSV header ❌");
+    const detectedCols = rows[0].slice(0, 5).join(", ");
+    const missing = [];
+    if (nameIdx === -1) missing.push("Name");
+    if (birthdayIdx === -1) missing.push("Birthday");
+    setCsvStatus(
+      `Could not detect required ${missing.join(" & ")} columns. (Detected headers: ${detectedCols || "none"}). Please check your CSV header or download the template below.`,
+      "error"
+    );
+    showToast(`Missing required CSV columns: ${missing.join(", ")} ❌`);
     return;
   }
 
   const currentYear = new Date().getFullYear();
   parsedCsvContacts = [];
+  const skippedRows = [];
 
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     const rawName = nameIdx !== -1 ? (row[nameIdx] || "").trim() : "";
     const rawBday = birthdayIdx !== -1 ? (row[birthdayIdx] || "").trim() : "";
-    if (!rawName || !rawBday) continue;
+
+    if (!rawName && !rawBday) continue; // skip blank line
+
+    if (!rawName || !rawBday) {
+      skippedRows.push(`Row ${r + 1} (Missing ${!rawName ? "Name" : "Birthday"})`);
+      continue;
+    }
 
     const rawEmail    = emailIdx !== -1 ? (row[emailIdx] || "").trim() : "";
     const rawWhatsapp = whatsappIdx !== -1 ? (row[whatsappIdx] || "").trim() : "";
@@ -649,9 +694,12 @@ function processCsvData(csvText) {
     const rawFinish   = finishIdx !== -1 ? (row[finishIdx] || "").trim() : "";
 
     const normalizedBirthday = normalizeDate(rawBday);
-    if (!normalizedBirthday) continue;
+    if (!normalizedBirthday) {
+      skippedRows.push(`Row ${r + 1} "${rawName}" (Unrecognized date: "${rawBday}")`);
+      continue;
+    }
 
-    const isStudent = /student|undergrad|pupil/i.test(rawStatus) || (rawFinish && !/staff|faculty|employee/i.test(rawStatus));
+    const isStudent = /student|undergrad|pupil/i.test(rawStatus) || (rawFinish && !/staff|faculty|employee|lecturer/i.test(rawStatus));
     const status = isStudent ? "student" : "staff";
 
     let expectedFinishDate = null;
@@ -664,36 +712,68 @@ function processCsvData(csvText) {
       finishMonth = 11;
     }
 
+    const cleanPhone = rawWhatsapp.replace(/[^\d+]/g, "");
+    const cleanNameTag = rawName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const emailDomain = isStudent ? "student.crawford.edu.ng" : "crawforduniversity.edu.ng";
+    const finalEmail = rawEmail || `${cleanNameTag || "contact"}@${emailDomain}`;
+
     parsedCsvContacts.push({
       name: rawName,
       birthday: normalizedBirthday,
-      email: rawEmail || `${rawName.toLowerCase().replace(/[^a-z0-9]/g, "")}@crawford.edu.ng`,
-      whatsapp: rawWhatsapp || "",
+      email: finalEmail,
+      whatsapp: cleanPhone || "",
       status: status,
       expectedFinishDate: expectedFinishDate,
       finishYear: finishYear,
       finishMonth: finishMonth,
-      wishMessage: defaultWish(rawName),
+      wishMessage: "", // empty so it dynamically displays official Crawford PRO greeting
       createdAt: Date.now(),
       updatedAt: Date.now()
     });
   }
 
   if (parsedCsvContacts.length === 0) {
-    showToast("No valid contacts could be extracted from this CSV ❌");
+    setCsvStatus(
+      `No valid contacts could be extracted from this CSV. ${skippedRows.length > 0 ? "Reasons: " + skippedRows.slice(0, 3).join("; ") : ""}`,
+      "error"
+    );
+    showToast("No valid contacts found in CSV ❌");
     return;
   }
 
-  // Render Preview
+  let statusMsg = `✅ Successfully parsed ${parsedCsvContacts.length} contact${parsedCsvContacts.length === 1 ? "" : "s"}. Review preview below and click Import!`;
+  if (skippedRows.length > 0) {
+    statusMsg += ` (${skippedRows.length} invalid row${skippedRows.length === 1 ? "" : "s"} skipped)`;
+  }
+  setCsvStatus(statusMsg, "success");
+  showToast(`Parsed ${parsedCsvContacts.length} contacts from CSV! 🎉`);
+
   renderCsvPreview(parsedCsvContacts);
 }
 
-// Convert various date formats (e.g., Google Forms DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, April 15) to YYYY-MM-DD
+// Convert various date formats (e.g., Google Forms DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD, April 15, 20/11) to YYYY-MM-DD
 function normalizeDate(raw) {
   if (!raw) return null;
-  const str = raw.trim();
+  let str = String(raw).trim();
 
-  // 1. ISO YYYY-MM-DD or YYYY/MM/DD
+  // Strip timestamps if present (e.g. "2024-05-14 10:30:00" -> "2024-05-14")
+  str = str.replace(/[T\s].*$/, "");
+
+  // 1. Excel serial number check (e.g., 38000..50000)
+  if (/^\d{4,5}$/.test(str)) {
+    const num = parseInt(str, 10);
+    if (num > 10000 && num < 60000) {
+      const date = new Date(Math.round((num - 25569) * 86400 * 1000));
+      if (!isNaN(date.getTime())) {
+        const y = date.getUTCFullYear();
+        const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+        const d = String(date.getUTCDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+      }
+    }
+  }
+
+  // 2. ISO format YYYY-MM-DD or YYYY/MM/DD
   const isoMatch = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
   if (isoMatch) {
     const y = isoMatch[1];
@@ -702,7 +782,7 @@ function normalizeDate(raw) {
     return `${y}-${m}-${d}`;
   }
 
-  // 2. DD/MM/YYYY or MM/DD/YYYY
+  // 3. DD/MM/YYYY or MM/DD/YYYY
   const slashMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
   if (slashMatch) {
     const p1 = parseInt(slashMatch[1], 10);
@@ -723,12 +803,28 @@ function normalizeDate(raw) {
     return `${y}-${m}-${d}`;
   }
 
-  // 3. Textual date: "April 15", "15 April", "15th April 2004"
+  // 4. DD/MM or MM/DD without year (very common for birthdays in Google Forms!)
+  const shortDateMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})$/);
+  if (shortDateMatch) {
+    const p1 = parseInt(shortDateMatch[1], 10);
+    const p2 = parseInt(shortDateMatch[2], 10);
+    let m, d;
+    if (p1 > 12) {
+      d = String(p1).padStart(2, "0");
+      m = String(p2).padStart(2, "0");
+    } else {
+      m = String(p1).padStart(2, "0");
+      d = String(p2).padStart(2, "0");
+    }
+    return `2000-${m}-${d}`;
+  }
+
+  // 5. Textual date: "April 15", "15 April", "15th April", "Nov 20th", "20 November 2002"
   const months = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
   const lower = str.toLowerCase();
   for (let mIdx = 0; mIdx < months.length; mIdx++) {
     if (lower.includes(months[mIdx])) {
-      const dayMatch = str.match(/\b([1-9]|[12][0-9]|3[01])(st|nd|rd|th)?\b/);
+      const dayMatch = str.match(/\b([1-9]|[12][0-9]|3[01])(st|nd|rd|th)?\b/i);
       const yearMatch = str.match(/\b(19\d\d|20\d\d)\b/);
       if (dayMatch) {
         const d = String(parseInt(dayMatch[1], 10)).padStart(2, "0");
@@ -771,50 +867,76 @@ function renderCsvPreview(contacts) {
   csvPreviewContainer.scrollIntoView({ behavior: "smooth" });
 }
 
-// Batch import contacts to Realtime Database
-if (importContactsBtn) {
-  importContactsBtn.addEventListener("click", async () => {
-    if (parsedCsvContacts.length === 0) {
-      showToast("No contacts selected for import ❌");
-      return;
-    }
+// Batch import execution logic
+async function executeBatchImport() {
+  if (parsedCsvContacts.length === 0) {
+    setCsvStatus("No contacts selected for import ❌", "error");
+    showToast("No contacts selected for import ❌");
+    return;
+  }
 
-    const user = auth.currentUser;
-    if (!user) {
-      showToast("Please sign in first ❌");
-      return;
-    }
+  const user = auth.currentUser;
+  if (!user) {
+    setCsvStatus("Please sign in first to import contacts ❌", "error");
+    showToast("Please sign in first ❌");
+    return;
+  }
 
+  if (importContactsBtn) {
     importContactsBtn.disabled = true;
     importContactsBtn.textContent = `Importing ${parsedCsvContacts.length} contacts...`;
+  }
+  if (importContactsBottomBtn) {
+    importContactsBottomBtn.disabled = true;
+    importContactsBottomBtn.textContent = `Importing ${parsedCsvContacts.length} contacts...`;
+  }
+  setCsvStatus(`Importing ${parsedCsvContacts.length} contacts into Realtime Database...`, "info");
 
-    try {
-      const contactsRef = ref(rtdb, "contacts");
-      const promises = parsedCsvContacts.map((contact) => {
-        contact.createdBy = user.email;
-        const newRef = push(contactsRef);
-        return set(newRef, contact);
-      });
+  try {
+    const contactsRef = ref(rtdb, "contacts");
+    let successCount = 0;
 
-      await Promise.all(promises);
+    for (const contact of parsedCsvContacts) {
+      contact.createdBy = user.email;
+      contact.createdAt = Date.now();
+      contact.updatedAt = Date.now();
+      const newRef = push(contactsRef);
+      await set(newRef, contact);
+      successCount++;
+    }
 
-      showToast(`Successfully imported ${parsedCsvContacts.length} contacts! 🎉`);
+    setCsvStatus(`Successfully imported ${successCount} contacts into database! 🎉`, "success");
+    showToast(`Successfully imported ${successCount} contacts! 🎉`);
 
-      // Reset CSV state and switch back to manual entry
-      parsedCsvContacts = [];
-      csvFileInput.value = "";
-      if (csvFilenameText) csvFilenameText.textContent = "";
-      csvPreviewContainer.classList.add("hidden");
-      if (tabSingleBtn) tabSingleBtn.click();
+    // Reset CSV state
+    parsedCsvContacts = [];
+    if (csvFileInput) csvFileInput.value = "";
+    if (csvFilenameText) csvFilenameText.textContent = "";
+    if (csvPreviewContainer) csvPreviewContainer.classList.add("hidden");
+    if (tabSingleBtn) tabSingleBtn.click();
 
-    } catch (err) {
-      console.error("Batch import error:", err);
-      showToast(`Import error: ${err.message || "Failed to save contacts"} ❌`);
-    } finally {
+  } catch (err) {
+    console.error("Batch import error:", err);
+    setCsvStatus(`Import error: ${err.message || "Failed to save contacts"} ❌`, "error");
+    showToast(`Import error: ${err.message || "Failed to save contacts"} ❌`);
+  } finally {
+    if (importContactsBtn) {
       importContactsBtn.disabled = false;
       importContactsBtn.textContent = "Import All Contacts to Database 🚀";
     }
-  });
+    if (importContactsBottomBtn) {
+      importContactsBottomBtn.disabled = false;
+      importContactsBottomBtn.textContent = "Import All Contacts to Database 🚀";
+    }
+  }
+}
+
+if (importContactsBtn) {
+  importContactsBtn.addEventListener("click", executeBatchImport);
+}
+
+if (importContactsBottomBtn) {
+  importContactsBottomBtn.addEventListener("click", executeBatchImport);
 }
 
 // Download Sample CSV Template
@@ -854,7 +976,13 @@ window.__editContact = (id) => {
   emailInput.value    = c.email || "";
   whatsappInput.value = c.whatsapp || "";
   statusSelect.value  = c.status || "staff";
-  wishInput.value     = c.wishMessage || "";
+
+  // Only display in textarea if user provided a custom wish, not the former generic default
+  if (c.wishMessage && !c.wishMessage.includes("Crawford University's PRO Office")) {
+    wishInput.value = "";
+  } else {
+    wishInput.value = c.wishMessage || "";
+  }
 
   if (c.status === "student") {
     studentFinishGroup.classList.remove("hidden");
@@ -895,7 +1023,7 @@ window.__sendEmailWish = async (id, isBelated = false) => {
   const subjectPrefix = isBelated ? "Happy Belated Birthday" : "Happy Birthday";
   const subject = encodeURIComponent(`${subjectPrefix}, ${c.name}! 🎂`);
 
-  let message = isBelated ? defaultBelatedWish(c.name) : (c.wishMessage || defaultWish(c.name));
+  const message = getContactWishMessage(c, isBelated);
   const body = encodeURIComponent(message);
   window.open(`mailto:${c.email}?subject=${subject}&body=${body}`, "_blank");
 
@@ -918,7 +1046,7 @@ window.__sendWhatsAppWish = async (id, isBelated = false) => {
   const currentYear = new Date().getFullYear();
   const cleanPhone = c.whatsapp.replace(/[^0-9]/g, "");
 
-  let message = isBelated ? defaultBelatedWish(c.name) : (c.wishMessage || defaultWish(c.name));
+  const message = getContactWishMessage(c, isBelated);
   const encodedText = encodeURIComponent(message);
   window.open(`https://wa.me/${cleanPhone}?text=${encodedText}`, "_blank");
 
@@ -952,49 +1080,34 @@ window.__markWished = async (id) => {
   }
 };
 
-// ============ Helper Functions ============
-function resetForm() {
-  contactForm.reset();
-  editIdInput.value = "";
-  formTitle.textContent = "Add a Birthday Contact";
-  saveBtn.textContent = "Add Contact";
-  cancelEditBtn.classList.add("hidden");
-  studentFinishGroup.classList.add("hidden");
-  finishDateSelect.removeAttribute("required");
-}
-
-function todayMMDD() {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${mm}-${dd}`;
-}
-
-function formatBirthday(dateStr) {
-  if (!dateStr) return "—";
-  const parts = dateStr.split("-");
-  if (parts.length === 3) {
-    const [y, m, d] = parts;
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    return `${months[parseInt(m, 10) - 1]} ${parseInt(d, 10)}`;
+// Returns the contact's wish message, guaranteeing that it includes the official Crawford PRO branding
+function getContactWishMessage(c, isBelated = false) {
+  if (isBelated) {
+    return defaultBelatedWish(c.name);
   }
-  return dateStr;
-}
 
-function extractYear(str) {
-  if (!str) return new Date().getFullYear();
-  const match = str.match(/\d{4}/);
-  return match ? parseInt(match[0], 10) : new Date().getFullYear();
+  if (c.wishMessage && typeof c.wishMessage === "string" && c.wishMessage.trim()) {
+    const msg = c.wishMessage.trim();
+    // If it already has the official Crawford PRO branding, use it
+    const hasCrawfordPRO = msg.includes("Crawford University's PRO Office") || (msg.includes("Crawford University") && msg.includes("PRO"));
+    if (!hasCrawfordPRO) {
+      // Stored text is the old generic message — automatically upgrade to Crawford PRO greeting!
+      return defaultWish(c.name);
+    }
+    return msg;
+  }
+
+  return defaultWish(c.name);
 }
 
 // Customized Default Birthday Wish from Crawford University's PRO Office
 function defaultWish(name) {
-  return `Happy Birthday, ${name}! 🎂🎉\n\nWishing you a glorious birthday filled with joy, peace, and divine blessings. May this new year of your life bring you greater heights of achievement, sound health, and boundless happiness!\n\nWith love & warmest regards,\nPublic Relations Office (PRO)\nCrawford University ❤️`;
+  return `Happy Birthday, ${name}! 🎂🎉\n\nWishing you a joyful and blessed birthday! May your new year be filled with abundant success, sound health, divine favor, and happiness.\n\nWith love from Crawford University's PRO Office ❤️`;
 }
 
 // Customized Belated Birthday Wish from Crawford University's PRO Office
 function defaultBelatedWish(name) {
-  return `Happy Belated Birthday, ${name}! 🎂🎉\n\nWe hope you had a truly wonderful birthday celebration! Wishing you an incredible year ahead filled with divine favour, joy, and grand success.\n\nWith love & warmest regards,\nPublic Relations Office (PRO)\nCrawford University ❤️`;
+  return `Happy Belated Birthday, ${name}! 🎂🎉\n\nWe hope your special day was truly blessed and wonderful! Wishing you an incredible year ahead filled with divine favor, peace, and great success.\n\nWith love from Crawford University's PRO Office ❤️`;
 }
 
 function escapeHtml(text) {
