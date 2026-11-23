@@ -18,10 +18,10 @@ try {
     git push origin main
     Write-Host "✅ GitHub push complete!" -ForegroundColor Green
 
-    # 3. Deploy to Firebase Hosting
-    Write-Host "🌐 Deploying to Firebase Hosting (https://cruprosite.web.app)..." -ForegroundColor Cyan
+    # 3. Deploy to Firebase Hosting and Realtime Database Rules
+    Write-Host "🌐 Deploying to Firebase Hosting & Database Rules (https://cruprosite.web.app)..." -ForegroundColor Cyan
     $env:NODE_OPTIONS = "--dns-result-order=ipv4first --use-system-ca"
-    npx -y firebase-tools@latest deploy --only hosting
+    npx -y firebase-tools@latest deploy --only hosting,database
 
     Write-Host "🎉 Successfully deployed! Your site is live at:" -ForegroundColor Green
     Write-Host "👉 https://cruprosite.web.app" -ForegroundColor Yellow
