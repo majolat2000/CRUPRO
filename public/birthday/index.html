@@ -24,7 +24,7 @@
       }
     } catch (_) {}
   </script>
-  <link rel="stylesheet" href="/style.css?v=2.5" />
+  <link rel="stylesheet" href="/style.css?v=2.6" />
 </head>
 <body>
 
@@ -181,9 +181,32 @@
 
       <!-- CSV File Upload Panel -->
       <div id="csv-import-panel" class="hidden">
+        <!-- Step 1: Select Staff or Students -->
+        <div class="csv-status-select-card">
+          <label class="field-title">1. Who are you importing contacts for? *</label>
+          <div class="csv-radio-group">
+            <label class="csv-radio-option selected" id="label-csv-type-staff">
+              <input type="radio" name="csv-target-type" id="csv-type-staff" value="staff" checked />
+              💼 Staff (Permanent Contacts)
+            </label>
+            <label class="csv-radio-option" id="label-csv-type-student">
+              <input type="radio" name="csv-target-type" id="csv-type-student" value="student" />
+              🎓 Students (Temporary Contacts)
+            </label>
+          </div>
+
+          <div id="csv-student-finish-group" class="form-group hidden" style="margin-top: 1rem; max-width: 440px;">
+            <label for="csv-expected-finish-date">Default Expected Finish Date (November only) *</label>
+            <select id="csv-expected-finish-date">
+              <!-- Dynamically populated in app.js -->
+            </select>
+            <small class="helper-text">Applied to student contacts in this CSV (auto-pruned when reached).</small>
+          </div>
+        </div>
+
         <label for="csv-file-input" class="csv-upload-box" id="csv-drop-zone">
           <div class="csv-icon">📊</div>
-          <h3>Upload Contacts from CSV</h3>
+          <h3>2. Upload Contacts from CSV</h3>
           <p class="card-description">
             Upload any CSV file (e.g. downloaded from Google Forms or Google Sheets). Click anywhere here to choose your file.
           </p>
@@ -283,8 +306,28 @@
     <!-- ============ ALL CONTACTS LIST ============ -->
     <div class="card">
       <div class="card-header-row">
-        <h2>Your Birthday Contacts</h2>
-        <span id="contacts-count" class="badge">0 contacts</span>
+        <div>
+          <h2>Your Birthday Contacts</h2>
+          <span id="contacts-count" class="badge">0 contacts</span>
+        </div>
+        <button type="button" id="delete-latest-100-btn" class="btn-danger-outline" title="Delete up to 100 most recently added contacts">
+          🗑️ Delete Latest 100
+        </button>
+      </div>
+
+      <!-- Filter Tabs: All, Staff, Students -->
+      <div class="contacts-toolbar">
+        <div class="contacts-filter-tabs">
+          <button type="button" class="btn-filter-tab active" data-status-filter="all" id="filter-all-btn">
+            All (<span id="filter-all-count">0</span>)
+          </button>
+          <button type="button" class="btn-filter-tab" data-status-filter="staff" id="filter-staff-btn">
+            💼 Staff (<span id="filter-staff-count">0</span>)
+          </button>
+          <button type="button" class="btn-filter-tab" data-status-filter="student" id="filter-student-btn">
+            🎓 Students (<span id="filter-student-count">0</span>)
+          </button>
+        </div>
       </div>
 
       <!-- Search & Filter Bar -->
@@ -312,7 +355,7 @@
 
   <!-- Firebase Modular Scripts -->
   <script type="module" src="/firebase-config.js"></script>
-  <script type="module" src="/auth.js?v=2.5"></script>
-  <script type="module" src="/app.js?v=2.5"></script>
+  <script type="module" src="/auth.js?v=2.6"></script>
+  <script type="module" src="/app.js?v=2.6"></script>
 </body>
 </html>

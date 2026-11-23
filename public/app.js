@@ -45,11 +45,28 @@ const importContactsBtn      = document.getElementById("import-contacts-btn");
 const importContactsBottomBtn = document.getElementById("import-contacts-bottom-btn");
 const switchCsvBtn           = document.getElementById("switch-to-csv-btn");
 
+// DOM references — CSV Target Status & Expected Finish
+const csvTypeStaff           = document.getElementById("csv-type-staff");
+const csvTypeStudent         = document.getElementById("csv-type-student");
+const labelCsvTypeStaff      = document.getElementById("label-csv-type-staff");
+const labelCsvTypeStudent    = document.getElementById("label-csv-type-student");
+const csvStudentFinishGroup  = document.getElementById("csv-student-finish-group");
+const csvExpectedFinishDate  = document.getElementById("csv-expected-finish-date");
+
 // DOM references — Search & Lists
 const searchInput        = document.getElementById("contact-search");
 const clearSearchBtn     = document.getElementById("clear-search-btn");
 const contactsList       = document.getElementById("contacts-list");
 const contactsCount      = document.getElementById("contacts-count");
+
+// DOM references — Contacts Filter Tabs & Batch Delete
+const filterAllBtn           = document.getElementById("filter-all-btn");
+const filterStaffBtn         = document.getElementById("filter-staff-btn");
+const filterStudentBtn       = document.getElementById("filter-student-btn");
+const filterAllCountEl       = document.getElementById("filter-all-count");
+const filterStaffCountEl     = document.getElementById("filter-staff-count");
+const filterStudentCountEl   = document.getElementById("filter-student-count");
+const deleteLatest100Btn     = document.getElementById("delete-latest-100-btn");
 const todaysList         = document.getElementById("todays-birthdays");
 const todaysCount        = document.getElementById("todays-count");
 const todaysPagination   = document.getElementById("todays-pagination");
@@ -94,6 +111,7 @@ let cachedContactsTotalCount = 0;
 let unsubscribeRtdb = null;
 const contactsMap = new Map();
 let currentSearchQuery = "";
+let currentContactTypeFilter = "all"; // "all" | "staff" | "student"
 let parsedCsvContacts = [];
 
 // ============ Tab Switching (Manual Entry vs CSV Import) ============
@@ -123,6 +141,8 @@ if (switchCsvBtn && tabCsvBtn) {
 // ============ Populate Dynamic November Finish Dates ============
 function populateExpectedFinishOptions() {
   finishDateSelect.innerHTML = "";
+  if (csvExpectedFinishDate) csvExpectedFinishDate.innerHTML = "";
+
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1; // 1-12
@@ -133,6 +153,10 @@ function populateExpectedFinishOptions() {
     opt.dataset.year = currentYear;
     opt.textContent = `November ${currentYear} (Finishing this year)`;
     finishDateSelect.appendChild(opt);
+
+    if (csvExpectedFinishDate) {
+      csvExpectedFinishDate.appendChild(opt.cloneNode(true));
+    }
   }
 
   for (let i = 1; i <= 6; i++) {
@@ -141,9 +165,47 @@ function populateExpectedFinishOptions() {
     opt.value = `November ${targetYear}`;
     opt.dataset.year = targetYear;
     opt.textContent = `November ${targetYear} (${i} year${i > 1 ? "s" : ""} left)`;
+    if (i === 4) opt.selected = true; // Default to 4-year undergraduate
     finishDateSelect.appendChild(opt);
+
+    if (csvExpectedFinishDate) {
+      const csvOpt = opt.cloneNode(true);
+      if (i === 4) csvOpt.selected = true;
+      csvExpectedFinishDate.appendChild(csvOpt);
+    }
   }
 }
+
+// ============ CSV Target Type Radio Toggle (Staff vs Student) ============
+function updateCsvTypeUI() {
+  if (!csvTypeStaff || !csvTypeStudent) return;
+  if (csvTypeStudent.checked) {
+    labelCsvTypeStudent?.classList.add("selected");
+    labelCsvTypeStaff?.classList.remove("selected");
+    csvStudentFinishGroup?.classList.remove("hidden");
+  } else {
+    labelCsvTypeStaff?.classList.add("selected");
+    labelCsvTypeStudent?.classList.remove("selected");
+    csvStudentFinishGroup?.classList.add("hidden");
+  }
+}
+
+if (csvTypeStaff && csvTypeStudent) {
+  csvTypeStaff.addEventListener("change", updateCsvTypeUI);
+  csvTypeStudent.addEventListener("change", updateCsvTypeUI);
+}
+
+// ============ Contact Type Filter Tabs (All / Staff / Students) ============
+const filterBtns = [filterAllBtn, filterStaffBtn, filterStudentBtn].filter(Boolean);
+filterBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    filterBtns.forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentContactTypeFilter = btn.dataset.statusFilter || "all";
+    pageState.contacts = 1;
+    filterAndRenderContacts();
+  });
+});
 
 // Show/hide expected finish date depending on status
 statusSelect.addEventListener("change", () => {
@@ -304,13 +366,29 @@ function isStudentExpired(c) {
   return false;
 }
 
-// ============ Filter & Render All Contacts (Search) ============
+// ============ Filter & Render All Contacts (Search & Status Filter) ============
 function filterAndRenderContacts() {
   const all = Array.from(contactsMap.values());
 
+  const staffCount = all.filter((c) => c.status !== "student").length;
+  const studentCount = all.filter((c) => c.status === "student").length;
+
+  if (filterAllCountEl) filterAllCountEl.textContent = all.length;
+  if (filterStaffCountEl) filterStaffCountEl.textContent = staffCount;
+  if (filterStudentCountEl) filterStudentCountEl.textContent = studentCount;
+
   let filtered = all;
+
+  // 1. Filter by Contact Type (All vs Staff vs Student)
+  if (currentContactTypeFilter === "staff") {
+    filtered = filtered.filter((c) => c.status !== "student");
+  } else if (currentContactTypeFilter === "student") {
+    filtered = filtered.filter((c) => c.status === "student");
+  }
+
+  // 2. Filter by Search Query
   if (currentSearchQuery) {
-    filtered = all.filter((c) => {
+    filtered = filtered.filter((c) => {
       const name = (c.name || "").toLowerCase();
       const email = (c.email || "").toLowerCase();
       const whatsapp = (c.whatsapp || "").toLowerCase();
@@ -329,7 +407,14 @@ function filterAndRenderContacts() {
     });
   }
 
-  renderContacts(filtered, all.length);
+  const baseCount =
+    currentContactTypeFilter === "staff"
+      ? staffCount
+      : currentContactTypeFilter === "student"
+      ? studentCount
+      : all.length;
+
+  renderContacts(filtered, baseCount);
 }
 
 // ============ Generic 5-Item Pagination Helper ============
@@ -378,10 +463,16 @@ function renderContactsPage() {
   const contacts = cachedContactsList;
 
   if (contactsCount) {
+    const filterLabel =
+      currentContactTypeFilter === "staff"
+        ? "staff contact"
+        : currentContactTypeFilter === "student"
+        ? "student contact"
+        : "contact";
     if (currentSearchQuery) {
       contactsCount.textContent = `${contacts.length} of ${totalCount} matching`;
     } else {
-      contactsCount.textContent = `${totalCount} contact${totalCount === 1 ? "" : "s"}`;
+      contactsCount.textContent = `${totalCount} ${filterLabel}${totalCount === 1 ? "" : "s"}`;
     }
   }
 
@@ -390,7 +481,13 @@ function renderContactsPage() {
     if (currentSearchQuery) {
       contactsList.innerHTML = `<p class="placeholder">No contacts match "<strong>${escapeHtml(currentSearchQuery)}</strong>".</p>`;
     } else {
-      contactsList.innerHTML = '<p class="placeholder">No contacts yet. Add your first contact above!</p>';
+      const emptyMsg =
+        currentContactTypeFilter === "staff"
+          ? "No staff contacts yet."
+          : currentContactTypeFilter === "student"
+          ? "No student contacts yet."
+          : "No contacts yet. Add your first contact above!";
+      contactsList.innerHTML = `<p class="placeholder">${emptyMsg}</p>`;
     }
     return;
   }
@@ -1121,17 +1218,27 @@ function processCsvData(csvText) {
       continue;
     }
 
-    const isStudent = /student|undergrad|pupil/i.test(rawStatus) || (rawFinish && !/staff|faculty|employee|lecturer/i.test(rawStatus));
-    const status = isStudent ? "student" : "staff";
-
+    // User selected target type: Staff vs Students
+    const targetType = document.querySelector('input[name="csv-target-type"]:checked')?.value || "staff";
+    let isStudent = false;
+    let status = "staff";
     let expectedFinishDate = null;
     let finishYear = null;
     let finishMonth = null;
 
-    if (isStudent) {
-      finishYear = extractYear(rawFinish) || (currentYear + 4);
-      expectedFinishDate = `November ${finishYear}`;
+    if (targetType === "student") {
+      isStudent = true;
+      status = "student";
+      const defaultGraduationYear = csvExpectedFinishDate ? extractYear(csvExpectedFinishDate.value) : (currentYear + 4);
+      finishYear = extractYear(rawFinish) || defaultGraduationYear;
+      expectedFinishDate = rawFinish ? `November ${finishYear}` : (csvExpectedFinishDate?.value || `November ${finishYear}`);
       finishMonth = 11;
+    } else {
+      isStudent = false;
+      status = "staff";
+      expectedFinishDate = null;
+      finishYear = null;
+      finishMonth = null;
     }
 
     const cleanPhone = rawWhatsapp.replace(/[^\d+]/g, "");
@@ -1436,6 +1543,55 @@ window.__deleteContact = async (id) => {
     showToast("Error deleting contact ❌");
   }
 };
+
+// ============ Delete Most Recently Added 100 Contacts ============
+if (deleteLatest100Btn) {
+  deleteLatest100Btn.addEventListener("click", async () => {
+    const user = auth.currentUser;
+    if (!user) {
+      showToast("Please sign in first ❌");
+      return;
+    }
+
+    const contacts = Array.from(contactsMap.values());
+    if (contacts.length === 0) {
+      showToast("No contacts to delete ℹ️");
+      return;
+    }
+
+    // Sort newest first: by createdAt descending, fallback to push key ID descending
+    const sortedNewestFirst = [...contacts].sort((a, b) => {
+      const timeA = a.createdAt || (getContactCreatedDate(a) ? getContactCreatedDate(a).getTime() : 0);
+      const timeB = b.createdAt || (getContactCreatedDate(b) ? getContactCreatedDate(b).getTime() : 0);
+      if (timeB !== timeA) return timeB - timeA;
+      return String(b.id || "").localeCompare(String(a.id || ""));
+    });
+
+    const toDelete = sortedNewestFirst.slice(0, 100);
+    const count = toDelete.length;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the ${count} most recently added contact${count === 1 ? "" : "s"}?\n\nThis action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    deleteLatest100Btn.disabled = true;
+    deleteLatest100Btn.textContent = `Deleting ${count}...`;
+
+    try {
+      for (const c of toDelete) {
+        await remove(ref(rtdb, `contacts/${c.id}`));
+      }
+      showToast(`Successfully deleted ${count} latest contact${count === 1 ? "" : "s"} 🗑️`);
+    } catch (err) {
+      console.error("Batch delete error:", err);
+      showToast(`Error deleting contacts: ${err.message || "Failed"} ❌`);
+    } finally {
+      deleteLatest100Btn.disabled = false;
+      deleteLatest100Btn.textContent = "🗑️ Delete Latest 100";
+    }
+  });
+}
 
 window.__sendEmailWish = async (id, isBelated = false) => {
   const c = contactsMap.get(id);

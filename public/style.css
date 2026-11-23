@@ -1063,6 +1063,132 @@ button:disabled {
   text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
 }
 
+/* ========== CSV Target Status Selector ========== */
+.csv-status-select-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.csv-status-select-card label.field-title {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 0.65rem;
+}
+
+.csv-radio-group {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.csv-radio-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  background: #ffffff;
+  border: 2px solid #cbd5e0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: #4a5568;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.csv-radio-option:hover {
+  border-color: #667eea;
+}
+
+.csv-radio-option input[type="radio"] {
+  accent-color: #667eea;
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+}
+
+.csv-radio-option.selected {
+  border-color: #667eea;
+  background: #ebf4ff;
+  color: #2b6cb0;
+}
+
+/* ========== Contacts Filter Tabs & Batch Actions Bar ========== */
+.contacts-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.contacts-filter-tabs {
+  display: inline-flex;
+  background: #edf2f7;
+  padding: 0.25rem;
+  border-radius: 9px;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.btn-filter-tab {
+  background: transparent;
+  border: none;
+  padding: 0.45rem 0.9rem;
+  border-radius: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #718096;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-filter-tab:hover {
+  color: #2d3748;
+}
+
+.btn-filter-tab.active {
+  background: #ffffff;
+  color: #2b6cb0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-danger-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #ffffff;
+  color: #e53e3e;
+  border: 1px solid #feb2b2;
+  border-radius: 8px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-danger-outline:hover:not(:disabled) {
+  background: #fff5f5;
+  border-color: #e53e3e;
+  box-shadow: 0 2px 4px rgba(229, 62, 62, 0.15);
+}
+
+.btn-danger-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ========== Auth Session Flash Prevention & Loading ========== */
 #auth-loading.hidden,
 #auth-loading[hidden] {
